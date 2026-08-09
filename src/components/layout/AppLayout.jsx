@@ -115,7 +115,7 @@ export default function AppLayout() {
           </DropdownMenu>
         </header>
 
-        <main className="mx-auto w-full max-w-7xl p-4 pb-16 sm:p-6">
+        <main className="mx-auto w-full max-w-[1500px] p-4 pb-16 sm:p-6">
           <Outlet />
         </main>
       </div>
