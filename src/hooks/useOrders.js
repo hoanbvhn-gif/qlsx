@@ -10,7 +10,8 @@ const ORDER_SELECT = `
   completed_at, delivered_at, created_at,
   sales:sales_id ( full_name, employee_code ),
   order_items ( id, line_no, item_code, item_name, spec, quantity, unit, unit_price, vat_rate, line_amount, line_vat, line_total ),
-  order_files ( id, line_no, source, file_name, file_url, storage_path, file_size, note )
+  order_files ( id, line_no, source, file_name, file_url, storage_path, file_size, note ),
+  payments ( id, payment_date, payment_type, amount, method, reference_no, transfer_note, note, reconciled )
 `
 
 export function useOrders({ statuses, salesId, autoRefresh = true } = {}) {

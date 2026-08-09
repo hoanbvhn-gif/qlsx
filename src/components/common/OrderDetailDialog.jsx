@@ -5,7 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { StatusBadge } from '@/components/ui/badge'
 import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS } from '@/lib/format'
-import { ExternalLink, FileWarning, Paperclip, Download, Loader2 } from 'lucide-react'
+import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt } from 'lucide-react'
+
+const PAY_LABEL = {
+  deposit: 'Đặt cọc', partial: 'Thanh toán từng phần',
+  final: 'Thanh toán nốt', refund: 'Hoàn trả'
+}
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
   const [busyId, setBusyId] = useState(null)
@@ -126,6 +131,34 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
           <Row k="Còn nợ" v={vnd(order.debt_amount)} bold
             className={order.debt_amount > 0 ? 'text-rose-600' : 'text-emerald-600'} />
         </div>
+
+        {/* ----- Lich su thu tien ----- */}
+        {!!order.payments?.length && (
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Receipt className="size-4" /> Lịch sử thu tiền ({order.payments.length})
+            </p>
+            <div className="space-y-1.5">
+              {[...order.payments]
+                .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
+                .map(p => (
+                <div key={p.id} className="flex items-start gap-3 rounded-lg border p-2.5 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {dmy(p.payment_date)} · {PAY_LABEL[p.payment_type] ?? p.payment_type}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[p.method, p.reference_no, p.transfer_note].filter(Boolean).join(' · ') || 'Không có chứng từ'}
+                    </p>
+                  </div>
+                  <span className={`num shrink-0 font-semibold ${Number(p.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    {vnd(p.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {order.note && <p className="rounded-lg bg-muted/50 p-3 text-sm"><b>Ghi chú:</b> {order.note}</p>}
         {order.reject_reason && order.status === 'rejected' && (
