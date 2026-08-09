@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { vnd, dmy, STATUS, payStatus } from '@/lib/format'
-import { FilePlus2, Search, Send, Eye, FolderPlus } from 'lucide-react'
+import { FilePlus2, Search, Send, Eye, FolderPlus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MyOrders() {
@@ -25,6 +26,7 @@ export default function MyOrders() {
   const [sel, setSel] = useState(null)
   const [design, setDesign] = useState(null)
   const [confirm, setConfirm] = useState(null)   // don dang cho xac nhan gui
+  const [del, setDel] = useState(null)          // don nhap muon xoa
 
   const rows = useMemo(() => orders.filter(o =>
     (!st || o.status === st) &&
@@ -90,6 +92,12 @@ export default function MyOrders() {
                           <Button size="sm" onClick={() => setConfirm(o)}>
                             <Send className="size-4" /> Gửi duyệt
                           </Button>
+                          {o.status === 'draft' && (
+                            <Button size="sm" variant="ghost" className="text-destructive"
+                              title="Xóa đơn nháp" onClick={() => setDel(o)}>
+                              <Trash2 className="size-4" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -101,6 +109,28 @@ export default function MyOrders() {
         )}
 
       <OrderDetailDialog order={sel} open={!!sel} onOpenChange={v => !v && setSel(null)} />
+
+      {/* Xoa don nhap */}
+      <Dialog open={!!del} onOpenChange={v => !v && setDel(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Xóa đơn nháp #{del?.order_code}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Đơn chưa gửi Kế toán nên xóa được. Toàn bộ dòng hàng hóa và liên kết thiết kế
+            của đơn cũng bị xóa theo. Không hoàn tác được.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDel(null)}>Giữ lại</Button>
+            <Button variant="destructive" onClick={async () => {
+              const { error } = await supabase.from('orders').delete().eq('id', del.id)
+              if (error) return toast.error(error.message)
+              toast.success(`Đã xóa đơn nháp ${del.order_code}`)
+              setDel(null); reload()
+            }}>
+              <Trash2 className="size-4" /> Xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Xem lai toan bo don roi moi gui */}
       <OrderDetailDialog

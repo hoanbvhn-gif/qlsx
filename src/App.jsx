@@ -20,6 +20,7 @@ import KanbanBoard from '@/pages/production/KanbanBoard'
 import Analytics from '@/pages/management/Analytics'
 import DebtReport from '@/pages/management/DebtReport'
 import UserRoles from '@/pages/management/UserRoles'
+import AllOrders from '@/pages/management/AllOrders'
 import Settings from '@/pages/settings/Settings'
 import ItemCatalog from '@/pages/items/ItemCatalog'
 
@@ -72,6 +73,7 @@ export default function App() {
             <ProtectedRoute allow={['management']}><AppLayout /></ProtectedRoute>}>
             <Route index element={<Analytics />} />
             <Route path="cong-no" element={<DebtReport />} />
+            <Route path="don-hang" element={<AllOrders />} />
             <Route path="phan-quyen" element={<UserRoles />} />
           </Route>
 

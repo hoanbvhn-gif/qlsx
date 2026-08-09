@@ -34,6 +34,7 @@ export default function AuditLog() {
   const [from, setFrom] = useState(firstOfMonth())
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10))
   const [act, setAct] = useState('')
+  const [tbl, setTbl] = useState('')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(null)
 
@@ -54,9 +55,10 @@ export default function AuditLog() {
     const key = noAccent(q)
     return rows.filter(r =>
       (!act || r.action === act) &&
+      (!tbl || r.table_name === tbl) &&
       (!key || noAccent(`${r.order_code ?? ''} ${r.customer_name ?? ''} ${r.nguoi_thuc_hien ?? ''} ${r.note ?? ''}`).includes(key))
     )
-  }, [rows, q, act])
+  }, [rows, q, act, tbl])
 
   const stat = useMemo(() => ({
     ins: list.filter(r => r.action === 'INSERT').length,
@@ -91,7 +93,7 @@ export default function AuditLog() {
 
       <Card className="mb-4">
         <CardContent className="space-y-3 p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Từ ngày</Label>
               <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />
@@ -105,6 +107,14 @@ export default function AuditLog() {
               <Select value={act} onChange={e => setAct(e.target.value)}>
                 <option value="">Tất cả</option>
                 {Object.entries(ACT).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Đối tượng</Label>
+              <Select value={tbl} onChange={e => setTbl(e.target.value)}>
+                <option value="">Tất cả</option>
+                <option value="payments">Bút toán thu tiền</option>
+                <option value="orders">Đơn hàng</option>
               </Select>
             </div>
           </div>
@@ -170,7 +180,9 @@ export default function AuditLog() {
 }
 
 const FIELDS = [
-  ['amount', 'Số tiền'], ['payment_date', 'Ngày thu'], ['payment_type', 'Loại'],
+  ['order_code', 'Mã đơn'], ['status', 'Trạng thái'], ['customer_name', 'Khách hàng'],
+  ['amount', 'Số tiền'], ['total_amount', 'Tổng tiền đơn'],
+  ['payment_date', 'Ngày thu'], ['payment_type', 'Loại'],
   ['method', 'Hình thức'], ['reference_no', 'Số chứng từ'], ['transfer_note', 'Nội dung CK'],
   ['note', 'Diễn giải'], ['voided', 'Đã hủy'], ['delete_reason', 'Lý do xóa']
 ]
@@ -191,7 +203,7 @@ function JsonBox({ title, data }) {
             <div key={k} className="flex justify-between gap-2">
               <span className="text-muted-foreground">{label}</span>
               <span className="truncate font-medium">
-                {k === 'amount' ? vnd(data[k]) : String(data[k])}
+                {(k === 'amount' || k === 'total_amount') ? vnd(data[k]) : String(data[k])}
               </span>
             </div>
           ))}

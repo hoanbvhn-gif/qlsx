@@ -39,6 +39,7 @@ const NAV = {
   ],
   management: [
     { to: '/gd',                   icon: BarChart3,       label: 'Báo cáo tổng hợp', end: true },
+    { to: '/gd/don-hang',          icon: ListOrdered,     label: 'Quản lý đơn hàng' },
     { to: '/gd/cong-no',           icon: Wallet,          label: 'Công nợ khách hàng' },
     { to: '/ketoan/so-thu-tien',   icon: Receipt,         label: 'Sổ thu tiền' },
     { to: '/ketoan/dieu-chinh',    icon: FileWarning,     label: 'Duyệt điều chỉnh thu tiền' },
