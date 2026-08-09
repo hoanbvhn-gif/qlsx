@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   LayoutDashboard, FilePlus2, ListOrdered, CheckSquare, Wallet, Users,
-  KanbanSquare, BarChart3, ShieldCheck, Menu, X, LogOut, Factory, Building2
+  KanbanSquare, BarChart3, ShieldCheck, Menu, X, LogOut, Factory, Building2,
+  Settings as SettingsIcon
 } from 'lucide-react'
 
 const NAV = {
@@ -24,7 +25,8 @@ const NAV = {
     { to: '/ketoan',               icon: LayoutDashboard, label: 'Tổng quan', end: true },
     { to: '/ketoan/duyet-don',     icon: CheckSquare,     label: 'Duyệt đơn hàng' },
     { to: '/ketoan/cong-no',       icon: Wallet,          label: 'Thu tiền & công nợ' },
-    { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' }
+    { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
+    { to: '/cau-hinh',             icon: SettingsIcon,    label: 'Cấu hình hệ thống' }
   ],
   production: [
     { to: '/sanxuat',              icon: KanbanSquare,    label: 'Bảng sản xuất', end: true }
@@ -35,7 +37,8 @@ const NAV = {
     { to: '/gd/phan-quyen',        icon: ShieldCheck,     label: 'Phân quyền nhân sự' },
     { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
     { to: '/ketoan/duyet-don',     icon: CheckSquare,     label: 'Duyệt đơn hàng' },
-    { to: '/sanxuat',              icon: KanbanSquare,    label: 'Bảng sản xuất' }
+    { to: '/sanxuat',              icon: KanbanSquare,    label: 'Bảng sản xuất' },
+    { to: '/cau-hinh',             icon: SettingsIcon,    label: 'Cấu hình hệ thống' }
   ]
 }
 

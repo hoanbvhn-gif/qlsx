@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useOrders } from '@/hooks/useOrders'
 import PageHeader from '@/components/common/PageHeader'
 import OrderDetailDialog from '@/components/common/OrderDetailDialog'
+import DesignLinksDialog from '@/components/common/DesignLinksDialog'
 import EmptyState from '@/components/common/EmptyState'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
@@ -13,7 +14,7 @@ import { Select } from '@/components/ui/select'
 import { StatusBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { vnd, dmy, STATUS } from '@/lib/format'
-import { FilePlus2, Search, Send, Eye } from 'lucide-react'
+import { FilePlus2, Search, Send, Eye, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function MyOrders() {
@@ -22,6 +23,7 @@ export default function MyOrders() {
   const [q, setQ] = useState('')
   const [st, setSt] = useState('')
   const [sel, setSel] = useState(null)
+  const [design, setDesign] = useState(null)
 
   const rows = useMemo(() => orders.filter(o =>
     (!st || o.status === st) &&
@@ -29,7 +31,7 @@ export default function MyOrders() {
   ), [orders, q, st])
 
   const submit = async (o) => {
-    if (!o.design_file_path) return toast.error('Đơn chưa có file thiết kế Market, không thể gửi duyệt.')
+    if (!o.design_file_path) return toast.error('Đơn chưa có link thiết kế Market, không thể gửi duyệt.')
     const { error } = await supabase.from('orders')
       .update({ status: 'pending_accounting', reject_reason: null }).eq('id', o.id)
     if (error) return toast.error(error.message)
@@ -81,9 +83,14 @@ export default function MyOrders() {
                     <div className="flex justify-end gap-1">
                       <Button size="sm" variant="ghost" onClick={() => setSel(o)}><Eye className="size-4" /></Button>
                       {['draft', 'rejected'].includes(o.status) && (
-                        <Button size="sm" variant="outline" onClick={() => submit(o)}>
-                          <Send className="size-4" /> Gửi duyệt
-                        </Button>
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => setDesign(o)}>
+                            <FolderPlus className="size-4" /> Thiết kế
+                          </Button>
+                          <Button size="sm" onClick={() => submit(o)} disabled={!o.design_file_path}>
+                            <Send className="size-4" /> Gửi duyệt
+                          </Button>
+                        </>
                       )}
                     </div>
                   </TableCell>
@@ -94,6 +101,12 @@ export default function MyOrders() {
         )}
 
       <OrderDetailDialog order={sel} open={!!sel} onOpenChange={v => !v && setSel(null)} />
+
+      <DesignLinksDialog
+        order={design} open={!!design}
+        onOpenChange={v => !v && setDesign(null)}
+        onSaved={reload}
+      />
     </>
   )
 }

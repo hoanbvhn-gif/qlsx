@@ -17,6 +17,7 @@ import KanbanBoard from '@/pages/production/KanbanBoard'
 import Analytics from '@/pages/management/Analytics'
 import DebtReport from '@/pages/management/DebtReport'
 import UserRoles from '@/pages/management/UserRoles'
+import Settings from '@/pages/settings/Settings'
 
 // Trang goc: dieu huong thang ve dashboard theo vai tro
 function RoleHome() {
@@ -65,6 +66,12 @@ export default function App() {
             <Route index element={<Analytics />} />
             <Route path="cong-no" element={<DebtReport />} />
             <Route path="phan-quyen" element={<UserRoles />} />
+          </Route>
+
+          {/* ---------- CAU HINH (Giam doc + Ke toan) ---------- */}
+          <Route path="/cau-hinh" element={
+            <ProtectedRoute allow={['management', 'accounting']}><AppLayout /></ProtectedRoute>}>
+            <Route index element={<Settings />} />
           </Route>
 
           <Route path="*" element={<RoleHome />} />

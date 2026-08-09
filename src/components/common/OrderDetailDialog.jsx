@@ -1,27 +1,18 @@
-import { useState } from 'react'
-import { supabase, DESIGN_BUCKET } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { StatusBadge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS } from '@/lib/format'
-import { Download, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { ExternalLink, FileWarning, Paperclip } from 'lucide-react'
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
-  const [busy, setBusy] = useState(false)
   if (!order) return null
 
-  const openDesign = async () => {
-    if (!order.design_file_path) return
-    setBusy(true)
-    const { data, error } = await supabase.storage
-      .from(DESIGN_BUCKET)
-      .createSignedUrl(order.design_file_path, 60 * 10)
-    setBusy(false)
-    if (error) return toast.error('Không mở được file: ' + error.message)
-    window.open(data.signedUrl, '_blank', 'noopener')
-  }
+  // uu tien danh sach order_files; neu don cu chi co 1 link thi dung link do
+  const designs = (order.order_files?.length
+    ? [...order.order_files].sort((a, b) => a.line_no - b.line_no)
+    : order.design_file_path
+      ? [{ id: 'legacy', file_name: order.design_file_name || 'Link thiết kế', file_url: order.design_file_path }]
+      : [])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,6 +35,32 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
           <Field k="Điện thoại" v={order.customer_phone} />
           <Field k="Ngày giao dự kiến" v={order.estimated_delivery_date ? dmy(order.estimated_delivery_date) : 'Chưa có'} />
           <Field k="Duyệt lúc" v={order.approved_at ? dmyhm(order.approved_at) : 'Chưa duyệt'} />
+        </div>
+
+        {/* ----- File thiet ke Market ----- */}
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Paperclip className="size-4" /> File thiết kế Market ({designs.length})
+          </p>
+          {designs.length ? (
+            <div className="space-y-1.5">
+              {designs.map(f => (
+                <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-3 rounded-lg border p-2.5 text-sm transition hover:bg-accent">
+                  <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{f.file_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{f.file_url}</p>
+                    {f.note && <p className="truncate text-xs text-muted-foreground">Ghi chú: {f.note}</p>}
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-sm text-rose-700">
+              <FileWarning className="size-4 shrink-0" /> Chưa có link thiết kế Market
+            </p>
+          )}
         </div>
 
         <Table>
@@ -78,7 +95,8 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
           <Row k="Tiền thuế GTGT" v={vnd(order.vat_amount)} />
           <Row k="Tổng thanh toán" v={vnd(order.total_amount)} bold />
           <Row k="Đã thu" v={vnd(order.paid_amount)} className="text-emerald-600" />
-          <Row k="Còn nợ" v={vnd(order.debt_amount)} bold className={order.debt_amount > 0 ? 'text-rose-600' : 'text-emerald-600'} />
+          <Row k="Còn nợ" v={vnd(order.debt_amount)} bold
+            className={order.debt_amount > 0 ? 'text-rose-600' : 'text-emerald-600'} />
         </div>
 
         {order.note && <p className="rounded-lg bg-muted/50 p-3 text-sm"><b>Ghi chú:</b> {order.note}</p>}
@@ -87,17 +105,6 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
             <b>Lý do trả lại:</b> {order.reject_reason}
           </p>
         )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          {order.design_file_path ? (
-            <Button variant="outline" onClick={openDesign} disabled={busy}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              File thiết kế: {order.design_file_name}
-            </Button>
-          ) : (
-            <span className="text-sm text-rose-600">Chưa đính kèm file thiết kế Market</span>
-          )}
-        </div>
 
         {footer}
       </DialogContent>

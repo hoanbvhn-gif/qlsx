@@ -17,4 +17,6 @@ export const LOGIN_DOMAIN = import.meta.env.VITE_LOGIN_DOMAIN || 'congty.local'
 export const toEmail = (username) =>
   username.includes('@') ? username.trim().toLowerCase() : `${username.trim().toLowerCase()}@${LOGIN_DOMAIN}`
 
+// Tu ban 1.1 he thong luu LINK thiet ke (OneDrive/Drive/o mang) thay vi upload file.
+// Giu hang so nay de tuong thich neu sau nay quay lai dung Storage.
 export const DESIGN_BUCKET = 'designs'

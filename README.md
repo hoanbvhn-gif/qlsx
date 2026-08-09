@@ -40,6 +40,21 @@ Ràng buộc bắt buộc: đơn **không thể** chuyển sang `pending_account
 `design_file_path`. Được chặn ở 3 lớp: UI, CHECK constraint `chk_design_required`,
 và trigger `trg_order_status_stamp`.
 
+### File thiết kế Market — lưu link, không upload
+
+Bản 1.1 chuyển từ upload file lên Supabase Storage sang **lưu đường dẫn**. Lý do
+thực tế: file .cdr/.pdf khổ in nặng 3–25 MB, một xưởng phát sinh khoảng 100 MB/tuần
+tức ~5 GB/năm, trong khi Storage gói miễn phí chỉ có 1 GB — đầy sau khoảng 10 tuần.
+
+File gốc tiếp tục nằm trên OneDrive / Google Drive / ổ mạng công ty theo đúng thói
+quen sẵn có. Hệ thống lưu danh sách link trong bảng `order_files` (số lượng không
+giới hạn, mỗi dòng gồm tên file + đường dẫn + ghi chú). Cột `orders.design_file_path`
+giữ link đầu tiên để ràng buộc bắt buộc vẫn hoạt động nguyên vẹn.
+
+Lưu ý vận hành: link phải được đặt quyền chia sẻ *"ai có link đều xem được"*, nếu
+không bộ phận Sản xuất mở sẽ bị chặn. Hệ thống chấp nhận `https://`, `file://` và
+đường dẫn UNC dạng `\\may-chu\thu-muc`.
+
 ### Mã đơn hàng
 `next_order_code()` sinh chuỗi `[STT 2 chữ số][DD][MM][YYYY]` — ví dụ đơn thứ nhất
 ngày 08/08/2026 → **`0108082026`**. Số thứ tự reset theo ngày, lưu trong bảng

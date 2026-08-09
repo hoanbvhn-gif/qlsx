@@ -21,7 +21,7 @@ export default function ApprovalQueue() {
   const [busy, setBusy] = useState(null)
 
   const approve = async (o) => {
-    if (!o.design_file_path) return toast.error('Đơn thiếu file thiết kế Market — không đủ điều kiện duyệt.')
+    if (!o.design_file_path) return toast.error('Đơn thiếu link thiết kế Market — không đủ điều kiện duyệt.')
     setBusy(o.id)
     const { error } = await supabase.from('orders')
       .update({ status: 'approved', reject_reason: null }).eq('id', o.id)
@@ -78,7 +78,9 @@ export default function ApprovalQueue() {
                                          : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
                       <Paperclip className="size-4 shrink-0" />
                       <span className="truncate">
-                        {o.design_file_path ? `File Market: ${o.design_file_name}` : 'CHƯA có file thiết kế Market'}
+                        {o.design_file_path
+                          ? `Thiết kế Market: ${o.order_files?.length || 1} link · ${o.design_file_name}`
+                          : 'CHƯA có link thiết kế Market'}
                       </span>
                     </div>
 

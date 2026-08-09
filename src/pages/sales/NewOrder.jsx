@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, DESIGN_BUCKET } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import PageHeader from '@/components/common/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import DesignLinksDialog from '@/components/common/DesignLinksDialog'
 import { vnd, parseNum } from '@/lib/format'
-import { Plus, Trash2, Upload, Save, Send, Loader2, Paperclip, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, Save, Send, Loader2, Link2, AlertTriangle, ExternalLink, Info } from 'lucide-react'
 import { toast } from 'sonner'
 
 const UNITS = ['Cái', 'Bộ', 'Chiếc', 'Kg', 'Tấn', 'Mét', 'M2', 'Thùng', 'Hộp', 'Tờ']
@@ -21,6 +22,9 @@ const blankLine = (n) => ({
   item_code: '', item_name: '', spec: '',
   quantity: '1', unit: 'Cái', unit_price: '', vat_rate: 8
 })
+const blankFile = () => ({ key: crypto.randomUUID(), file_name: '', file_url: '', note: '' })
+
+const isUrl = (s) => /^(https?:\/\/|file:\/\/|\\\\)/i.test((s || '').trim())
 
 export default function NewOrder() {
   const { profile } = useAuth()
@@ -33,16 +37,19 @@ export default function NewOrder() {
     order_date: new Date().toISOString().slice(0, 10), note: ''
   })
   const [lines, setLines] = useState([blankLine(1)])
-  const [file, setFile] = useState(null)
+  const [files, setFiles] = useState([blankFile()])
   const [busy, setBusy] = useState(false)
   const [previewCode, setPreviewCode] = useState('')
+
+  // Sau khi luu nhap xong -> mo hop thoai dan link thiet ke (luc nay da co ma don)
+  const [savedOrder, setSavedOrder] = useState(null)
 
   useEffect(() => {
     supabase.from('customers').select('*').order('name').then(({ data }) => setCustomers(data ?? []))
     const d = new Date()
     const dd = String(d.getDate()).padStart(2, '0')
     const mm = String(d.getMonth() + 1).padStart(2, '0')
-    setPreviewCode(`NN${dd}${mm}${d.getFullYear()}`)
+    setPreviewCode(`01${dd}${mm}${d.getFullYear()}`)
   }, [])
 
   /* ---------- Dong hang hoa ---------- */
@@ -50,6 +57,13 @@ export default function NewOrder() {
   const delLine = (key) =>
     setLines(l => (l.length === 1 ? l : l.filter(x => x.key !== key).map((x, i) => ({ ...x, line_no: i + 1 }))))
   const setLine = (key, patch) => setLines(l => l.map(x => (x.key === key ? { ...x, ...patch } : x)))
+
+  /* ---------- Dong link thiet ke ---------- */
+  const addFile = () => setFiles(f => [...f, blankFile()])
+  const delFile = (key) => setFiles(f => (f.length === 1 ? [blankFile()] : f.filter(x => x.key !== key)))
+  const setFile = (key, patch) => setFiles(f => f.map(x => (x.key === key ? { ...x, ...patch } : x)))
+
+  const validFiles = useMemo(() => files.filter(f => isUrl(f.file_url)), [files])
 
   /* ---------- Tinh tien ---------- */
   const totals = useMemo(() => {
@@ -71,13 +85,15 @@ export default function NewOrder() {
     }))
   }
 
-  /* ---------- Kiem tra truoc khi luu ---------- */
   const validate = (forSubmit) => {
     if (!head.customer_name.trim()) return 'Chưa nhập tên khách hàng.'
     const ok = lines.filter(l => l.item_name.trim() && parseNum(l.quantity) > 0)
     if (!ok.length) return 'Đơn hàng phải có ít nhất 1 dòng hàng hóa hợp lệ.'
     // RANG BUOC BAT BUOC theo quy trinh
-    if (forSubmit && !file) return 'Bắt buộc đính kèm file thiết kế Market trước khi gửi Kế toán duyệt.'
+    if (forSubmit && !validFiles.length)
+      return 'Bắt buộc có ít nhất 1 link file thiết kế Market trước khi gửi Kế toán duyệt.'
+    if (files.some(f => f.file_url.trim() && !isUrl(f.file_url)))
+      return 'Có dòng link không hợp lệ. Link phải bắt đầu bằng https:// hoặc \\\\ (ổ mạng).'
     return null
   }
 
@@ -87,7 +103,8 @@ export default function NewOrder() {
     setBusy(true)
     let orderId = null
     try {
-      /* 1. Sinh ma don: STT + DD + MM + YYYY  (vd 0108082026) */
+      /* 1. Sinh ma don NGAY LUC LUU (STT + DD + MM + YYYY -> vd 0109082026)
+            Khong cap truoc, tranh nhay coc so thu tu khi Sales bo do. */
       const { data: code, error: eCode } =
         await supabase.rpc('next_order_code', { p_date: head.order_date })
       if (eCode) throw eCode
@@ -104,16 +121,8 @@ export default function NewOrder() {
         customerId = c.id
       }
 
-      /* 3. Upload file thiet ke Market len Supabase Storage */
-      let designPath = null, designName = null
-      if (file) {
-        const clean = file.name.replace(/[^\w.\-]/g, '_')
-        designPath = `${code}/${Date.now()}_${clean}`
-        const { error: eU } = await supabase.storage
-          .from(DESIGN_BUCKET).upload(designPath, file, { upsert: false })
-        if (eU) throw eU
-        designName = file.name
-      }
+      /* 3. Link chinh = link dau tien (phuc vu rang buoc bat buoc co thiet ke) */
+      const primary = validFiles[0] ?? null
 
       /* 4. Tao don hang */
       const { data: order, error: eO } = await supabase.from('orders').insert({
@@ -126,16 +135,16 @@ export default function NewOrder() {
         customer_phone: head.customer_phone,
         sales_id: profile.id,
         status: forSubmit ? 'pending_accounting' : 'draft',
-        design_file_path: designPath,
-        design_file_name: designName,
-        design_uploaded_at: designPath ? new Date().toISOString() : null,
+        design_file_path: primary?.file_url.trim() ?? null,
+        design_file_name: primary ? (primary.file_name.trim() || 'Link thiết kế') : null,
+        design_uploaded_at: primary ? new Date().toISOString() : null,
         note: head.note
       }).select('id, order_code').single()
       if (eO) throw eO
       orderId = order.id
 
       /* 5. Chi tiet hang hoa */
-      const payload = lines
+      const items = lines
         .filter(l => l.item_name.trim() && parseNum(l.quantity) > 0)
         .map((l, i) => ({
           order_id: order.id, line_no: i + 1,
@@ -143,13 +152,31 @@ export default function NewOrder() {
           quantity: parseNum(l.quantity), unit: l.unit,
           unit_price: parseNum(l.unit_price), vat_rate: Number(l.vat_rate) || 0
         }))
-      const { error: eI } = await supabase.from('order_items').insert(payload)
+      const { error: eI } = await supabase.from('order_items').insert(items)
       if (eI) throw eI
 
-      toast.success(forSubmit
-        ? `Đã gửi đơn ${order.order_code} sang Kế toán duyệt`
-        : `Đã lưu nháp đơn ${order.order_code}`)
-      nav('/kinhdoanh/don-hang')
+      /* 6. Danh sach link thiet ke */
+      if (validFiles.length) {
+        const payload = validFiles.map((f, i) => ({
+          order_id: order.id, line_no: i + 1,
+          file_name: f.file_name.trim() || `Thiết kế ${i + 1}`,
+          file_url: f.file_url.trim(),
+          note: f.note?.trim() || null
+        }))
+        const { error: eF } = await supabase.from('order_files').insert(payload)
+        if (eF) throw eF
+      }
+
+      if (forSubmit) {
+        toast.success(`Đã gửi đơn ${order.order_code} sang Kế toán duyệt`)
+        nav('/kinhdoanh/don-hang')
+      } else {
+        toast.success(`Đã lưu nháp đơn ${order.order_code} — giờ tạo thư mục Drive và dán link`)
+        setSavedOrder({
+          id: order.id, order_code: order.order_code, order_date: head.order_date,
+          status: 'draft', customer_name: head.customer_name, customer_code: head.customer_code
+        })
+      }
     } catch (e) {
       if (orderId) await supabase.from('orders').delete().eq('id', orderId)  // rollback thu cong
       toast.error('Lỗi: ' + (e.message ?? e))
@@ -162,7 +189,7 @@ export default function NewOrder() {
     <>
       <PageHeader
         title="Lập đơn hàng mới"
-        desc={`Mã đơn sẽ tự sinh theo quy tắc [STT][Ngày][Tháng][Năm] — ví dụ ${previewCode.replace('NN', '01')}`}
+        desc={`Mã đơn tự sinh theo quy tắc [STT][Ngày][Tháng][Năm] — ví dụ ${previewCode}`}
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -210,7 +237,6 @@ export default function NewOrder() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Desktop: dang bang */}
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
                   <thead>
@@ -263,7 +289,6 @@ export default function NewOrder() {
                 </table>
               </div>
 
-              {/* Mobile: dang the */}
               <div className="space-y-3 md:hidden">
                 {lines.map((l, i) => (
                   <div key={l.key} className="rounded-xl border p-3">
@@ -302,36 +327,64 @@ export default function NewOrder() {
           </Card>
         </div>
 
-        {/* ----- Cot phai: file + tong ket ----- */}
+        {/* ----- Cot phai: link thiet ke + tong ket ----- */}
         <div className="space-y-5">
-          <Card className={file ? '' : 'border-amber-300 bg-amber-50/40'}>
-            <CardHeader><CardTitle>3. File thiết kế Market *</CardTitle></CardHeader>
+          <Card className={validFiles.length ? '' : 'border-amber-300 bg-amber-50/40'}>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle>3. Link thiết kế Market *</CardTitle>
+              <Button size="sm" variant="outline" onClick={addFile}>
+                <Plus className="size-4" /> Thêm
+              </Button>
+            </CardHeader>
             <CardContent className="space-y-3">
-              {!file && (
+              {!validFiles.length && (
                 <p className="flex gap-2 rounded-lg bg-amber-100/70 p-2.5 text-xs text-amber-800">
                   <AlertTriangle className="size-4 shrink-0" />
-                  Bắt buộc có file thiết kế thì đơn mới gửi được sang Kế toán.
+                  Bắt buộc ít nhất 1 link thì đơn mới gửi được sang Kế toán.
                 </p>
               )}
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition hover:bg-accent">
-                <Upload className="size-6 text-muted-foreground" />
-                <span className="text-sm font-medium">{file ? 'Chọn file khác' : 'Tải file lên'}</span>
-                <span className="text-xs text-muted-foreground">PDF, AI, CDR, PSD, JPG, PNG · tối đa 25MB</span>
-                <input type="file" className="hidden"
-                  accept=".pdf,.ai,.cdr,.psd,.jpg,.jpeg,.png,.zip,.rar"
-                  onChange={e => {
-                    const f = e.target.files?.[0]
-                    if (f && f.size > 25 * 1024 * 1024) return toast.error('File vượt quá 25MB')
-                    setFile(f ?? null)
-                  }} />
-              </label>
-              {file && (
-                <div className="flex items-center gap-2 rounded-lg border bg-background p-2.5 text-sm">
-                  <Paperclip className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="flex-1 truncate">{file.name}</span>
-                  <span className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+
+              <p className="flex gap-2 rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground">
+                <Info className="size-4 shrink-0" />
+                Chưa có link? Bấm <b>Lưu nháp</b> — hệ thống cấp mã đơn rồi hiện ngay
+                tên thư mục cần tạo trên Google Drive để bạn dán link vào.
+              </p>
+
+              {files.map((f, i) => (
+                <div key={f.key} className="space-y-2 rounded-xl border bg-background p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Thiết kế {i + 1}</span>
+                    <div className="flex items-center gap-1">
+                      {isUrl(f.file_url) && (
+                        <a href={f.file_url} target="_blank" rel="noopener noreferrer"
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="Mở thử link">
+                          <ExternalLink className="size-4" />
+                        </a>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => delFile(f.key)}>
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Input placeholder="Tên file — vd: 25 - nhôm 0.5 - 1t - 2k.pdf"
+                    value={f.file_name} onChange={e => setFile(f.key, { file_name: e.target.value })} />
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="pl-9" placeholder="Dán link OneDrive / Google Drive / ổ mạng"
+                      value={f.file_url} onChange={e => setFile(f.key, { file_url: e.target.value })} />
+                  </div>
+                  {f.file_url.trim() && !isUrl(f.file_url) && (
+                    <p className="text-xs text-destructive">
+                      Link phải bắt đầu bằng https:// hoặc \\ (đường dẫn ổ mạng)
+                    </p>
+                  )}
                 </div>
-              )}
+              ))}
+
+              <p className="text-xs text-muted-foreground">
+                Nhớ đặt quyền chia sẻ &quot;Ai có link đều xem được&quot; để bộ phận Sản xuất mở được file.
+              </p>
             </CardContent>
           </Card>
 
@@ -351,18 +404,30 @@ export default function NewOrder() {
                   placeholder="Yêu cầu đặc biệt, thời hạn giao..." />
               </div>
               <div className="grid gap-2">
-                <Button onClick={() => save(true)} disabled={busy} size="lg">
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                  Gửi Kế toán duyệt
+                <Button onClick={() => save(false)} disabled={busy} size="lg">
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  Lưu nháp &amp; lấy mã đơn
                 </Button>
-                <Button variant="outline" onClick={() => save(false)} disabled={busy}>
-                  <Save className="size-4" /> Lưu nháp
+                <Button variant="outline" onClick={() => save(true)} disabled={busy || !validFiles.length}>
+                  <Send className="size-4" /> Gửi Kế toán duyệt
                 </Button>
+                {!validFiles.length && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    Gửi duyệt được sau khi có link thiết kế
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <DesignLinksDialog
+        order={savedOrder}
+        open={!!savedOrder}
+        onOpenChange={v => { if (!v) { setSavedOrder(null); nav('/kinhdoanh/don-hang') } }}
+        onSaved={() => {}}
+      />
     </>
   )
 }
