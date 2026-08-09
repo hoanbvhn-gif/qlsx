@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import DesignLinksDialog from '@/components/common/DesignLinksDialog'
+import { useItems } from '@/hooks/useItems'
 import { vnd, parseNum } from '@/lib/format'
 import { Plus, Trash2, Save, Send, Loader2, Link2, AlertTriangle, ExternalLink, Info } from 'lucide-react'
 import { toast } from 'sonner'
@@ -44,6 +45,9 @@ export default function NewOrder() {
   // Sau khi luu nhap xong -> mo hop thoai dan link thiet ke (luc nay da co ma don)
   const [savedOrder, setSavedOrder] = useState(null)
 
+  // Danh muc ma hang da duyet -> go ma tu dien ten/DVT/don gia
+  const { items: catalogItems } = useItems({ onlyApproved: true })
+
   useEffect(() => {
     supabase.from('customers').select('*').order('name').then(({ data }) => setCustomers(data ?? []))
     const d = new Date()
@@ -64,6 +68,19 @@ export default function NewOrder() {
   const setFile = (key, patch) => setFiles(f => f.map(x => (x.key === key ? { ...x, ...patch } : x)))
 
   const validFiles = useMemo(() => files.filter(f => isUrl(f.file_url)), [files])
+
+  /** Go dung ma hang -> tu dien ten hang, DVT, don gia niem yet */
+  const applyItemCode = (key, raw) => {
+    const code = (raw || '').trim().toUpperCase()
+    const found = catalogItems.find(x => x.item_code === code)
+    if (!found) return setLine(key, { item_code: raw })
+    setLine(key, {
+      item_code: code,
+      item_name: found.item_name,
+      unit: found.unit || 'Cái',
+      unit_price: found.list_price > 0 ? String(found.list_price) : ''
+    })
+  }
 
   /* ---------- Tinh tien ---------- */
   const totals = useMemo(() => {
@@ -237,6 +254,17 @@ export default function NewOrder() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Go ma hang se hien goi y tu danh muc da duyet */}
+              <datalist id="dm-ma-hang">
+                {catalogItems.map(it => (
+                  <option key={it.id} value={it.item_code}>{it.item_name}</option>
+                ))}
+              </datalist>
+              <p className="text-xs text-muted-foreground">
+                Gõ mã hàng (vd <code className="font-mono">ALAM050001</code>) sẽ tự điền tên hàng,
+                ĐVT và đơn giá niêm yết · <b>{catalogItems.length}</b> mã đang có hiệu lực
+              </p>
+
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
                   <thead>
@@ -256,8 +284,9 @@ export default function NewOrder() {
                     {lines.map((l, i) => (
                       <tr key={l.key} className="border-b last:border-0">
                         <td className="py-2 text-muted-foreground">{i + 1}</td>
-                        <td className="px-1.5"><Input className="h-9" value={l.item_code}
-                          onChange={e => setLine(l.key, { item_code: e.target.value })} /></td>
+                        <td className="px-1.5"><Input className="h-9 font-mono uppercase" list="dm-ma-hang"
+                          placeholder="ALAM050001" value={l.item_code}
+                          onChange={e => applyItemCode(l.key, e.target.value)} /></td>
                         <td className="px-1.5"><Input className="h-9" value={l.item_name}
                           onChange={e => setLine(l.key, { item_name: e.target.value })} /></td>
                         <td className="px-1.5"><Input className="h-9 text-right" inputMode="decimal" value={l.quantity}
@@ -299,7 +328,8 @@ export default function NewOrder() {
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <Input placeholder="Mã hàng" value={l.item_code} onChange={e => setLine(l.key, { item_code: e.target.value })} />
+                      <Input placeholder="Mã hàng" list="dm-ma-hang" className="font-mono uppercase"
+                        value={l.item_code} onChange={e => applyItemCode(l.key, e.target.value)} />
                       <Select value={l.unit} onChange={e => setLine(l.key, { unit: e.target.value })}>
                         {UNITS.map(u => <option key={u}>{u}</option>)}
                       </Select>

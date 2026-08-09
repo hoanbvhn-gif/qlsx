@@ -11,7 +11,7 @@ import {
 import {
   LayoutDashboard, FilePlus2, ListOrdered, CheckSquare, Wallet, Users,
   KanbanSquare, BarChart3, ShieldCheck, Menu, X, LogOut, Factory, Building2,
-  Settings as SettingsIcon
+  Settings as SettingsIcon, Package
 } from 'lucide-react'
 
 const NAV = {
@@ -19,17 +19,20 @@ const NAV = {
     { to: '/kinhdoanh',            icon: LayoutDashboard, label: 'Tổng quan', end: true },
     { to: '/kinhdoanh/don-moi',    icon: FilePlus2,       label: 'Lập đơn hàng' },
     { to: '/kinhdoanh/don-hang',   icon: ListOrdered,     label: 'Đơn hàng của tôi' },
-    { to: '/kinhdoanh/tien-do',    icon: KanbanSquare,    label: 'Tiến độ đơn hàng' }
+    { to: '/kinhdoanh/tien-do',    icon: KanbanSquare,    label: 'Tiến độ đơn hàng' },
+    { to: '/ma-hang',              icon: Package,         label: 'Danh mục mã hàng' }
   ],
   accounting: [
     { to: '/ketoan',               icon: LayoutDashboard, label: 'Tổng quan', end: true },
     { to: '/ketoan/duyet-don',     icon: CheckSquare,     label: 'Duyệt đơn hàng' },
     { to: '/ketoan/cong-no',       icon: Wallet,          label: 'Thu tiền & công nợ' },
     { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
+    { to: '/ma-hang',              icon: Package,         label: 'Danh mục mã hàng' },
     { to: '/cau-hinh',             icon: SettingsIcon,    label: 'Cấu hình hệ thống' }
   ],
   production: [
-    { to: '/sanxuat',              icon: KanbanSquare,    label: 'Bảng sản xuất', end: true }
+    { to: '/sanxuat',              icon: KanbanSquare,    label: 'Bảng sản xuất', end: true },
+    { to: '/ma-hang',              icon: Package,         label: 'Danh mục mã hàng' }
   ],
   management: [
     { to: '/gd',                   icon: BarChart3,       label: 'Báo cáo tổng hợp', end: true },
@@ -38,6 +41,7 @@ const NAV = {
     { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
     { to: '/ketoan/duyet-don',     icon: CheckSquare,     label: 'Duyệt đơn hàng' },
     { to: '/sanxuat',              icon: KanbanSquare,    label: 'Bảng sản xuất' },
+    { to: '/ma-hang',              icon: Package,         label: 'Danh mục mã hàng' },
     { to: '/cau-hinh',             icon: SettingsIcon,    label: 'Cấu hình hệ thống' }
   ]
 }

@@ -18,6 +18,7 @@ import Analytics from '@/pages/management/Analytics'
 import DebtReport from '@/pages/management/DebtReport'
 import UserRoles from '@/pages/management/UserRoles'
 import Settings from '@/pages/settings/Settings'
+import ItemCatalog from '@/pages/items/ItemCatalog'
 
 // Trang goc: dieu huong thang ve dashboard theo vai tro
 function RoleHome() {
@@ -66,6 +67,12 @@ export default function App() {
             <Route index element={<Analytics />} />
             <Route path="cong-no" element={<DebtReport />} />
             <Route path="phan-quyen" element={<UserRoles />} />
+          </Route>
+
+          {/* ---------- DANH MUC MA HANG (moi vai tro deu xem duoc) ---------- */}
+          <Route path="/ma-hang" element={
+            <ProtectedRoute allow={['management', 'accounting', 'sales', 'production']}><AppLayout /></ProtectedRoute>}>
+            <Route index element={<ItemCatalog />} />
           </Route>
 
           {/* ---------- CAU HINH (Giam doc + Ke toan) ---------- */}
