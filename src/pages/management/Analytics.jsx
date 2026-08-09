@@ -1,18 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useOrders } from '@/hooks/useOrders'
 import PageHeader from '@/components/common/PageHeader'
 import StatCard from '@/components/common/StatCard'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { vnd, STATUS, DEPT_OF_STATUS } from '@/lib/format'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import EmptyState from '@/components/common/EmptyState'
+import { cn } from '@/lib/utils'
+import { vnd, dmy, STATUS, DEPT_OF_STATUS } from '@/lib/format'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts'
-import { TrendingUp, Wallet, AlertTriangle, Receipt } from 'lucide-react'
+import { TrendingUp, Wallet, AlertTriangle, Receipt, Factory, Clock, CheckCircle2, Users } from 'lucide-react'
 
 const COLORS = ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#14b8a6', '#8b5cf6', '#94a3b8']
 const fmtAxis = v => (v >= 1e9 ? (v / 1e9).toFixed(1) + ' tỷ' : (v / 1e6).toFixed(0) + ' tr')
@@ -20,6 +25,24 @@ const fmtAxis = v => (v >= 1e9 ? (v / 1e9).toFixed(1) + ' tỷ' : (v / 1e6).toFi
 export default function Analytics() {
   const { orders, loading } = useOrders()
   const [year, setYear] = useState(new Date().getFullYear())
+
+  // Cong no THUC (hang da giao chua thu), ton san xuat, hieu suat NVKD
+  const [debts, setDebts] = useState([])
+  const [wip, setWip] = useState([])
+  const [perf, setPerf] = useState([])
+
+  useEffect(() => {
+    supabase.from('v_cong_no_thuc').select('*').order('so_ngay_no', { ascending: false })
+      .then(({ data }) => setDebts(data ?? []))
+    supabase.from('v_ton_san_xuat').select('*').order('so_ngay_ke_tu_duyet', { ascending: false })
+      .then(({ data }) => setWip(data ?? []))
+    supabase.from('v_kd_hieu_suat').select('*').order('doanh_thu', { ascending: false })
+      .then(({ data }) => setPerf(data ?? []))
+  }, [])
+
+  const tongCongNo = useMemo(() => debts.reduce((a, r) => a + Number(r.debt_amount), 0), [debts])
+  const tongTon = useMemo(() => wip.reduce((a, r) => a + Number(r.total_amount), 0), [wip])
+  const treHan = useMemo(() => wip.filter(r => r.so_ngay_tre_han > 0).length, [wip])
 
   const live = useMemo(() => orders.filter(o => !['draft', 'cancelled'].includes(o.status)), [orders])
   const years = useMemo(() =>
@@ -96,16 +119,20 @@ export default function Analytics() {
         <StatCard label={`Doanh thu ${year}`} value={vnd(kpi.revenue)} icon={TrendingUp} sub={`${kpi.count} đơn hàng`} />
         <StatCard label="Đã thu" value={vnd(kpi.collected)} icon={Wallet} tone="text-emerald-600"
           sub={kpi.revenue ? `${((kpi.collected / kpi.revenue) * 100).toFixed(1)}% doanh thu` : ''} />
-        <StatCard label="Công nợ phải thu" value={vnd(kpi.debt)} icon={AlertTriangle} tone="text-rose-600" />
-        <StatCard label="Điểm nghẽn hiện tại" value={bottleneck?.value ?? 0} icon={Receipt}
-          sub={bottleneck ? `${bottleneck.name} · ${bottleneck.bophan}` : ''} tone="text-amber-600" />
+        <StatCard label="Công nợ phải thu" value={vnd(tongCongNo)} icon={AlertTriangle} tone="text-rose-600"
+          sub={`${debts.length} đơn đã giao chưa thu đủ`} />
+        <StatCard label="Đang ở Sản xuất" value={vnd(tongTon)} icon={Factory} tone="text-indigo-600"
+          sub={`${wip.length} đơn${treHan ? ` · ${treHan} đơn trễ hạn` : ''}`} />
       </div>
 
       <Tabs defaultValue="thang" className="mt-5">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="thang">Theo tháng</TabsTrigger>
           <TabsTrigger value="quy">Theo quý</TabsTrigger>
-          <TabsTrigger value="nvkd">Theo nhân viên</TabsTrigger>
+          <TabsTrigger value="nvkd">Biểu đồ NVKD</TabsTrigger>
+          <TabsTrigger value="hieusuat">Doanh thu &amp; công nợ NVKD</TabsTrigger>
+          <TabsTrigger value="congno">Chi tiết công nợ</TabsTrigger>
+          <TabsTrigger value="tonsx">Tồn sản xuất</TabsTrigger>
         </TabsList>
 
         <TabsContent value="thang">
@@ -183,6 +210,202 @@ export default function Analytics() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ---------- DOANH THU & CONG NO THEO NVKD ---------- */}
+        <TabsContent value="hieusuat">
+          <Card>
+            <CardHeader>
+              <CardTitle>Doanh thu và công nợ theo nhân viên kinh doanh</CardTitle>
+              <CardDescription>
+                Công nợ chỉ tính đơn <b>đã giao hàng</b> mà chưa thu đủ tiền. Đơn chưa giao xếp vào
+                cột &quot;Đang chạy&quot; — chưa phải công nợ.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!perf.length ? <EmptyState icon={Users} title="Chưa có dữ liệu" /> : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nhân viên</TableHead>
+                      <TableHead className="text-right">Số đơn</TableHead>
+                      <TableHead className="text-right">Doanh thu</TableHead>
+                      <TableHead className="text-right">Đã thu</TableHead>
+                      <TableHead className="text-right">Công nợ</TableHead>
+                      <TableHead className="text-right">Đang chạy</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {perf.map(r => (
+                      <TableRow key={r.sales_id}>
+                        <TableCell className="font-medium">
+                          {r.sales_name}
+                          {r.employee_code && <span className="block text-xs text-muted-foreground">{r.employee_code}</span>}
+                        </TableCell>
+                        <TableCell className="num text-right">{r.so_don}</TableCell>
+                        <TableCell className="num text-right font-medium">{vnd(r.doanh_thu)}</TableCell>
+                        <TableCell className="num text-right text-emerald-600">{vnd(r.da_thu)}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={cn('num font-semibold', Number(r.cong_no) > 0 ? 'text-rose-600' : 'text-muted-foreground')}>
+                            {vnd(r.cong_no)}
+                          </span>
+                          {r.so_don_con_no > 0 && (
+                            <span className="block text-xs text-muted-foreground">{r.so_don_con_no} đơn</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="num text-indigo-600">{vnd(r.dang_chay)}</span>
+                          {r.so_don_dang_sx > 0 && (
+                            <span className="block text-xs text-muted-foreground">{r.so_don_dang_sx} đơn ở SX</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell>Tổng cộng</TableCell>
+                      <TableCell className="num text-right">{perf.reduce((a, r) => a + Number(r.so_don), 0)}</TableCell>
+                      <TableCell className="num text-right">{vnd(perf.reduce((a, r) => a + Number(r.doanh_thu), 0))}</TableCell>
+                      <TableCell className="num text-right text-emerald-700">{vnd(perf.reduce((a, r) => a + Number(r.da_thu), 0))}</TableCell>
+                      <TableCell className="num text-right text-rose-600">{vnd(perf.reduce((a, r) => a + Number(r.cong_no), 0))}</TableCell>
+                      <TableCell className="num text-right text-indigo-600">{vnd(perf.reduce((a, r) => a + Number(r.dang_chay), 0))}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---------- CHI TIET CONG NO ---------- */}
+        <TabsContent value="congno">
+          <Card>
+            <CardHeader>
+              <CardTitle>Chi tiết công nợ ({debts.length} đơn)</CardTitle>
+              <CardDescription>
+                Hàng đã giao nhưng chưa thu đủ tiền — sắp xếp theo số ngày nợ giảm dần
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!debts.length ? (
+                <EmptyState icon={CheckCircle2} title="Không có công nợ"
+                  desc="Mọi đơn đã giao đều đã thu đủ tiền." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mã đơn</TableHead>
+                      <TableHead>Khách hàng</TableHead>
+                      <TableHead>NVKD</TableHead>
+                      <TableHead>Ngày giao</TableHead>
+                      <TableHead className="text-right">Số ngày nợ</TableHead>
+                      <TableHead className="text-right">Tổng tiền</TableHead>
+                      <TableHead className="text-right">Đã thu</TableHead>
+                      <TableHead className="text-right">Còn nợ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {debts.map(r => (
+                      <TableRow key={r.order_id}>
+                        <TableCell className="font-mono font-medium">{r.order_code}</TableCell>
+                        <TableCell className="min-w-[180px]">
+                          {r.customer_name}
+                          {r.tax_code && <span className="block text-xs text-muted-foreground">MST {r.tax_code}</span>}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{r.sales_name || '--'}</TableCell>
+                        <TableCell className="whitespace-nowrap">{dmy(r.delivered_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge className={cn(
+                            r.so_ngay_no > 60 ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : r.so_ngay_no > 30 ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-muted text-muted-foreground')}>
+                            {r.so_ngay_no} ngày
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="num text-right">{vnd(r.total_amount)}</TableCell>
+                        <TableCell className="num text-right text-emerald-600">{vnd(r.paid_amount)}</TableCell>
+                        <TableCell className="num text-right font-semibold text-rose-600">{vnd(r.debt_amount)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell colSpan={7}>Tổng công nợ phải thu</TableCell>
+                      <TableCell className="num text-right text-rose-600">{vnd(tongCongNo)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---------- TON SAN XUAT ---------- */}
+        <TabsContent value="tonsx">
+          <Card>
+            <CardHeader>
+              <CardTitle>Đơn còn tồn ở Sản xuất ({wip.length} đơn)</CardTitle>
+              <CardDescription>
+                Đã duyệt xuống Sản xuất nhưng chưa giao xong{treHan ? ` — ${treHan} đơn đã quá hạn giao` : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!wip.length ? (
+                <EmptyState icon={CheckCircle2} title="Sản xuất đã xong hết"
+                  desc="Không còn đơn nào tồn đọng." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mã đơn</TableHead>
+                      <TableHead>Khách hàng</TableHead>
+                      <TableHead>NVKD</TableHead>
+                      <TableHead>Trạng thái</TableHead>
+                      <TableHead className="text-right">Ngày kể từ duyệt</TableHead>
+                      <TableHead>Hạn giao</TableHead>
+                      <TableHead className="text-right">Giá trị</TableHead>
+                      <TableHead className="text-center">Thiết kế</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {wip.map(r => (
+                      <TableRow key={r.order_id} className={cn(r.so_ngay_tre_han > 0 && 'bg-rose-50/50')}>
+                        <TableCell className="font-mono font-medium">{r.order_code}</TableCell>
+                        <TableCell className="min-w-[170px]">{r.customer_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{r.sales_name || '--'}</TableCell>
+                        <TableCell><StatusBadge status={r.status} /></TableCell>
+                        <TableCell className="num text-right">
+                          <span className={cn(r.so_ngay_ke_tu_duyet > 14 && 'font-semibold text-amber-700')}>
+                            {r.so_ngay_ke_tu_duyet ?? '--'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {r.estimated_delivery_date ? (
+                            <>
+                              {dmy(r.estimated_delivery_date)}
+                              {r.so_ngay_tre_han > 0 && (
+                                <span className="block text-xs font-semibold text-rose-600">
+                                  trễ {r.so_ngay_tre_han} ngày
+                                </span>
+                              )}
+                            </>
+                          ) : <span className="text-muted-foreground">chưa có</span>}
+                        </TableCell>
+                        <TableCell className="num text-right font-medium">{vnd(r.total_amount)}</TableCell>
+                        <TableCell className="text-center">
+                          {r.co_thiet_ke
+                            ? <CheckCircle2 className="mx-auto size-4 text-emerald-600" />
+                            : <Clock className="mx-auto size-4 text-amber-600" />}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell colSpan={6}>Tổng giá trị đang ở Sản xuất</TableCell>
+                      <TableCell className="num text-right">{vnd(tongTon)}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

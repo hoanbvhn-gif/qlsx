@@ -10,13 +10,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { vnd, dmy, dmyhm } from '@/lib/format'
 import { cn, noAccent } from '@/lib/utils'
 import {
   Search, Download, Wallet, TrendingUp, CheckCircle2, Circle,
-  Landmark, Banknote, CalendarDays, RotateCcw, PencilLine, Ban, Clock
+  Landmark, Banknote, CalendarDays, RotateCcw, PencilLine, Ban, Clock, Trash2, AlertTriangle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import AmendmentDialog from './AmendmentDialog'
@@ -49,6 +51,10 @@ export default function PaymentLedger() {
   const [method, setMethod] = useState('')
   const [rec, setRec] = useState('')
   const [amend, setAmend] = useState(null)
+  const [del, setDel] = useState(null)          // but toan Giam doc muon xoa han
+  const [delReason, setDelReason] = useState('')
+  const [delBusy, setDelBusy] = useState(false)
+  const isBoss = profile?.role === 'management'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,6 +94,20 @@ export default function PaymentLedger() {
       .update({ reconciled: !r.reconciled }).eq('id', r.id)
     if (error) return toast.error(error.message)
     setRows(rs => rs.map(x => x.id === r.id ? { ...x, reconciled: !x.reconciled } : x))
+  }
+
+  /** Giam doc xoa han but toan — ghi ly do vao truoc de nhat ky bat duoc */
+  const doDelete = async () => {
+    if (!delReason.trim()) return toast.error('Bắt buộc ghi lý do xóa.')
+    setDelBusy(true)
+    const { error: e1 } = await supabase.from('payments')
+      .update({ delete_reason: delReason.trim() }).eq('id', del.id)
+    if (e1) { setDelBusy(false); return toast.error(e1.message) }
+    const { error: e2 } = await supabase.from('payments').delete().eq('id', del.id)
+    setDelBusy(false)
+    if (e2) return toast.error(e2.message)
+    toast.success('Đã xóa bút toán — thao tác được lưu vào Nhật ký hệ thống')
+    setDel(null); setDelReason(''); load()
   }
 
   const exportCsv = () => {
@@ -261,17 +281,65 @@ export default function PaymentLedger() {
                       </Badge>
                     ) : r.voided ? (
                       <span className="text-xs text-muted-foreground">--</span>
-                    ) : canEdit ? (
-                      <Button size="sm" variant="ghost" onClick={() => setAmend(r)}>
-                        <PencilLine className="size-4" /> Sửa
-                      </Button>
-                    ) : null}
+                    ) : (
+                      <div className="flex justify-end gap-1">
+                        {canEdit && (
+                          <Button size="sm" variant="ghost" onClick={() => setAmend(r)}>
+                            <PencilLine className="size-4" /> Sửa
+                          </Button>
+                        )}
+                        {isBoss && (
+                          <Button size="sm" variant="ghost" className="text-destructive"
+                            title="Chỉ Ban Giám đốc xóa được" onClick={() => { setDel(r); setDelReason('') }}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
+
+      {/* Xoa han but toan — chi Ban Giam doc */}
+      <Dialog open={!!del} onOpenChange={v => !delBusy && !v && setDel(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-5" /> Xóa hẳn bút toán
+            </DialogTitle>
+          </DialogHeader>
+          {del && (
+            <div className="space-y-1 rounded-xl border bg-muted/40 p-3 text-sm">
+              <div className="flex justify-between"><span>Đơn</span><b className="font-mono">#{del.order_code}</b></div>
+              <div className="flex justify-between"><span>Khách hàng</span><b className="truncate">{del.customer_name}</b></div>
+              <div className="flex justify-between"><span>Ngày thu</span><b>{dmy(del.payment_date)}</b></div>
+              <div className="flex justify-between text-base"><span>Số tiền</span><b className="num">{vnd(del.amount)} đ</b></div>
+            </div>
+          )}
+          <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+            Bút toán biến mất khỏi sổ và công nợ của đơn tăng trở lại. Thao tác này
+            <b> không hoàn tác được</b>. Cân nhắc dùng <b>Hủy bút toán</b> thay thế —
+            cách đó giữ dòng lại trong sổ để đối chiếu về sau.
+          </p>
+          <div className="space-y-1.5">
+            <Label>Lý do xóa *</Label>
+            <Textarea rows={3} value={delReason} onChange={e => setDelReason(e.target.value)}
+              placeholder="vd: Nhập trùng 2 lần cùng một khoản thu ngày 09/08" />
+            <p className="text-xs text-muted-foreground">
+              Lý do được ghi vĩnh viễn vào Nhật ký hệ thống cùng toàn bộ nội dung bút toán.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDel(null)} disabled={delBusy}>Hủy bỏ</Button>
+            <Button variant="destructive" onClick={doDelete} disabled={delBusy || !delReason.trim()}>
+              <Trash2 className="size-4" /> Xóa vĩnh viễn
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AmendmentDialog payment={amend} open={!!amend}
         onOpenChange={v => !v && setAmend(null)} onSaved={load} />

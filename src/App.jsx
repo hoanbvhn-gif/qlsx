@@ -14,6 +14,7 @@ import ApprovalQueue from '@/pages/accounting/ApprovalQueue'
 import Payments from '@/pages/accounting/Payments'
 import PaymentLedger from '@/pages/accounting/PaymentLedger'
 import AmendmentQueue from '@/pages/accounting/AmendmentQueue'
+import AuditLog from '@/pages/accounting/AuditLog'
 import StaffManagement from '@/pages/accounting/StaffManagement'
 import KanbanBoard from '@/pages/production/KanbanBoard'
 import Analytics from '@/pages/management/Analytics'
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="cong-no" element={<Payments />} />
             <Route path="so-thu-tien" element={<PaymentLedger />} />
             <Route path="dieu-chinh" element={<AmendmentQueue />} />
+            <Route path="nhat-ky" element={<AuditLog />} />
             <Route path="nhan-su" element={<StaffManagement />} />
           </Route>
 

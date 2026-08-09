@@ -11,7 +11,7 @@ import {
 import {
   LayoutDashboard, FilePlus2, ListOrdered, CheckSquare, Wallet, Users,
   KanbanSquare, BarChart3, ShieldCheck, Menu, X, LogOut, Factory, Building2,
-  Settings as SettingsIcon, Package, Receipt, FileWarning
+  Settings as SettingsIcon, Package, Receipt, FileWarning, ScrollText
 } from 'lucide-react'
 
 const NAV = {
@@ -28,6 +28,7 @@ const NAV = {
     { to: '/ketoan/cong-no',       icon: Wallet,          label: 'Thu tiền & công nợ' },
     { to: '/ketoan/so-thu-tien',   icon: Receipt,         label: 'Sổ thu tiền' },
     { to: '/ketoan/dieu-chinh',    icon: FileWarning,     label: 'Yêu cầu điều chỉnh' },
+    { to: '/ketoan/nhat-ky',       icon: ScrollText,      label: 'Nhật ký hệ thống' },
     { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
     { to: '/ma-hang',              icon: Package,         label: 'Danh mục mã hàng' },
     { to: '/cau-hinh',             icon: SettingsIcon,    label: 'Cấu hình hệ thống' }
@@ -41,6 +42,7 @@ const NAV = {
     { to: '/gd/cong-no',           icon: Wallet,          label: 'Công nợ khách hàng' },
     { to: '/ketoan/so-thu-tien',   icon: Receipt,         label: 'Sổ thu tiền' },
     { to: '/ketoan/dieu-chinh',    icon: FileWarning,     label: 'Duyệt điều chỉnh thu tiền' },
+    { to: '/ketoan/nhat-ky',       icon: ScrollText,      label: 'Nhật ký hệ thống' },
     { to: '/gd/phan-quyen',        icon: ShieldCheck,     label: 'Phân quyền nhân sự' },
     { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
     { to: '/ketoan/duyet-don',     icon: CheckSquare,     label: 'Duyệt đơn hàng' },
