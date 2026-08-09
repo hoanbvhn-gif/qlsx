@@ -16,9 +16,10 @@ import { vnd, dmy, dmyhm } from '@/lib/format'
 import { cn, noAccent } from '@/lib/utils'
 import {
   Search, Download, Wallet, TrendingUp, CheckCircle2, Circle,
-  Landmark, Banknote, CalendarDays, RotateCcw
+  Landmark, Banknote, CalendarDays, RotateCcw, PencilLine, Ban, Clock
 } from 'lucide-react'
 import { toast } from 'sonner'
+import AmendmentDialog from './AmendmentDialog'
 
 const TYPE_LABEL = {
   deposit: 'Đặt cọc', partial: 'Thanh toán từng phần',
@@ -47,6 +48,7 @@ export default function PaymentLedger() {
   const [q, setQ] = useState('')
   const [method, setMethod] = useState('')
   const [rec, setRec] = useState('')
+  const [amend, setAmend] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -200,16 +202,22 @@ export default function PaymentLedger() {
                 <TableHead className="text-right">Số tiền</TableHead>
                 <TableHead>Người ghi</TableHead>
                 <TableHead className="text-center">Đối chiếu</TableHead>
+                <TableHead className="text-right">Điều chỉnh</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {list.map(r => (
-                <TableRow key={r.id} className={cn(Number(r.amount) < 0 && 'bg-rose-50/40')}>
+                <TableRow key={r.id} className={cn(
+                  Number(r.amount) < 0 && 'bg-rose-50/40',
+                  r.voided && 'bg-muted/60 text-muted-foreground')}>
                   <TableCell className="whitespace-nowrap">
                     {dmy(r.payment_date)}
                     <span className="block text-xs text-muted-foreground">{dmyhm(r.created_at)}</span>
                   </TableCell>
-                  <TableCell className="font-mono font-medium">{r.order_code}</TableCell>
+                  <TableCell className="font-mono font-medium">
+                    {r.order_code}
+                    {r.voided && <span className="block text-[11px] font-sans text-rose-600">ĐÃ HỦY</span>}
+                  </TableCell>
                   <TableCell className="min-w-[170px]">
                     {r.customer_name}
                     {r.sales_name && <span className="block text-xs text-muted-foreground">NVKD {r.sales_name}</span>}
@@ -228,7 +236,8 @@ export default function PaymentLedger() {
                     )}
                   </TableCell>
                   <TableCell className={cn('num text-right font-semibold',
-                    Number(r.amount) < 0 ? 'text-rose-600' : 'text-emerald-700')}>
+                    r.voided ? 'text-muted-foreground line-through'
+                      : Number(r.amount) < 0 ? 'text-rose-600' : 'text-emerald-700')}>
                     {vnd(r.amount)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{r.nguoi_ghi || '--'}</TableCell>
@@ -245,17 +254,37 @@ export default function PaymentLedger() {
                       {r.reconciled ? 'Đã khớp' : 'Chưa'}
                     </button>
                   </TableCell>
+                  <TableCell className="text-right">
+                    {r.co_yeu_cau_sua ? (
+                      <Badge className="bg-amber-50 text-amber-700 border-amber-200">
+                        <Clock className="mr-1 size-3" /> Chờ GĐ duyệt
+                      </Badge>
+                    ) : r.voided ? (
+                      <span className="text-xs text-muted-foreground">--</span>
+                    ) : canEdit ? (
+                      <Button size="sm" variant="ghost" onClick={() => setAmend(r)}>
+                        <PencilLine className="size-4" /> Sửa
+                      </Button>
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
 
+      <AmendmentDialog payment={amend} open={!!amend}
+        onOpenChange={v => !v && setAmend(null)} onSaved={load} />
+
       <p className="mt-4 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
         <b>Cách đối chiếu sao kê:</b> tải sao kê từ ngân hàng, xuất file CSV ở đây với cùng khoảng
         thời gian, mở cả hai bằng Excel rồi dò theo cột <b>Số tiền</b> và <b>Nội dung CK</b>.
         Khoản nào khớp thì quay lại đây bấm vào ô <b>Chưa</b> để chuyển thành <b>Đã khớp</b>.
         Cuối kỳ chỉ cần lọc &quot;Chưa đối chiếu&quot; là ra ngay danh sách cần xử lý.
+        <br /><br />
+        <b>Ghi sai thì sao?</b> Bấm <b>Sửa</b> ở cột cuối để gửi yêu cầu điều chỉnh kèm lý do.
+        Số đã thu giữ nguyên cho tới khi Ban Giám đốc duyệt. Bút toán không bao giờ bị xóa —
+        trường hợp hủy thì đưa về 0 đ và đánh dấu ĐÃ HỦY, vẫn nằm trong sổ để giữ dấu vết.
       </p>
     </>
   )
