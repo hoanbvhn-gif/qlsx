@@ -3,14 +3,9 @@ import { supabase, DESIGN_BUCKET } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
-import { StatusBadge } from '@/components/ui/badge'
-import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS } from '@/lib/format'
+import { Badge, StatusBadge } from '@/components/ui/badge'
+import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS, payStatus, PAYMENT_TYPE_LABEL } from '@/lib/format'
 import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt } from 'lucide-react'
-
-const PAY_LABEL = {
-  deposit: 'Đặt cọc', partial: 'Thanh toán từng phần',
-  final: 'Thanh toán nốt', refund: 'Hoàn trả'
-}
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
   const [busyId, setBusyId] = useState(null)
@@ -25,6 +20,12 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
     if (error) return toast.error('Không mở được file: ' + error.message)
     window.open(data.signedUrl, '_blank', 'noopener')
   }
+
+  const pay = payStatus(order)
+  const pays = order.payments ?? []
+  const deposit = pays.filter(p => p.payment_type === 'deposit')
+                      .reduce((a, p) => a + Number(p.amount), 0)
+  const lastPay = [...pays].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0]
 
   // uu tien danh sach order_files; neu don cu chi co 1 link thi dung link do
   const designs = (order.order_files?.length
@@ -123,13 +124,37 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
           </TableBody>
         </Table>
 
-        <div className="ml-auto w-full space-y-1.5 text-sm sm:w-72">
-          <Row k="Cộng tiền hàng" v={vnd(order.subtotal)} />
-          <Row k="Tiền thuế GTGT" v={vnd(order.vat_amount)} />
-          <Row k="Tổng thanh toán" v={vnd(order.total_amount)} bold />
-          <Row k="Đã thu" v={vnd(order.paid_amount)} className="text-emerald-600" />
-          <Row k="Còn nợ" v={vnd(order.debt_amount)} bold
-            className={order.debt_amount > 0 ? 'text-rose-600' : 'text-emerald-600'} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 rounded-xl border p-4 text-sm">
+            <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Giá trị đơn hàng</p>
+            <Row k="Cộng tiền hàng" v={vnd(order.subtotal)} />
+            <Row k="Tiền thuế GTGT" v={vnd(order.vat_amount)} />
+            <div className="my-1 h-px bg-border" />
+            <Row k="Tổng thanh toán" v={vnd(order.total_amount)} bold />
+          </div>
+
+          <div className="space-y-2 rounded-xl border p-4 text-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Tình trạng thanh toán</p>
+              <Badge className={pay.tone}>{pay.label}</Badge>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className={`h-full rounded-full transition-all ${pay.bar}`} style={{ width: `${pay.pct}%` }} />
+            </div>
+            <Row k="Đã thu" v={vnd(order.paid_amount)} className="text-emerald-600" />
+            {deposit > 0 && <Row k="— trong đó đặt cọc" v={vnd(deposit)} className="text-muted-foreground" />}
+            <Row k="Còn nợ" v={vnd(order.debt_amount)} bold
+              className={order.debt_amount > 0 ? 'text-rose-600' : 'text-emerald-600'} />
+            {lastPay && (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Lần thu gần nhất: {dmy(lastPay.payment_date)} · {vnd(lastPay.amount)} đ
+                {lastPay.method ? ` · ${lastPay.method}` : ''}
+              </p>
+            )}
+            {!order.payments?.length && (
+              <p className="pt-1 text-xs text-muted-foreground">Chưa phát sinh khoản thu nào.</p>
+            )}
+          </div>
         </div>
 
         {/* ----- Lich su thu tien ----- */}
@@ -145,7 +170,7 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
                 <div key={p.id} className="flex items-start gap-3 rounded-lg border p-2.5 text-sm">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
-                      {dmy(p.payment_date)} · {PAY_LABEL[p.payment_type] ?? p.payment_type}
+                      {dmy(p.payment_date)} · {PAYMENT_TYPE_LABEL[p.payment_type] ?? p.payment_type}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {[p.method, p.reference_no, p.transfer_note].filter(Boolean).join(' · ') || 'Không có chứng từ'}

@@ -21,7 +21,6 @@ export default function ApprovalQueue() {
   const [busy, setBusy] = useState(null)
 
   const approve = async (o) => {
-    if (!o.design_file_path) return toast.error('Đơn thiếu link thiết kế Market — không đủ điều kiện duyệt.')
     setBusy(o.id)
     const { error } = await supabase.from('orders')
       .update({ status: 'approved', reject_reason: null }).eq('id', o.id)
@@ -74,13 +73,14 @@ export default function ApprovalQueue() {
                     </div>
 
                     <div className={`mb-3 flex items-center gap-2 rounded-lg border p-2.5 text-xs ${
-                      o.design_file_path ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                         : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+                      (o.order_files?.length || o.design_file_path)
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
                       <Paperclip className="size-4 shrink-0" />
                       <span className="truncate">
-                        {o.design_file_path
-                          ? `Thiết kế Market: ${o.order_files?.length || 1} link · ${o.design_file_name}`
-                          : 'CHƯA có link thiết kế Market'}
+                        {o.order_files?.length || o.design_file_path
+                          ? `Thiết kế Market: ${o.order_files?.length || 1} file`
+                          : 'Chưa có thiết kế Market — vẫn duyệt được, Kinh doanh bổ sung sau'}
                       </span>
                     </div>
 
@@ -89,7 +89,7 @@ export default function ApprovalQueue() {
                         <Eye className="size-4" /> Xem chi tiết
                       </Button>
                       <Button variant="success" size="sm" onClick={() => approve(o)}
-                        disabled={busy === o.id || !o.design_file_path}>
+                        disabled={busy === o.id}>
                         {busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
                         Duyệt đơn
                       </Button>
@@ -109,7 +109,7 @@ export default function ApprovalQueue() {
         footer={sel && (
           <div className="flex justify-end gap-2 border-t pt-4">
             <Button variant="outline" onClick={() => { setRejectFor(sel); setSel(null) }}>Trả lại</Button>
-            <Button variant="success" disabled={!sel.design_file_path}
+            <Button variant="success"
               onClick={() => { approve(sel); setSel(null) }}>
               <Check className="size-4" /> Duyệt & chuyển Sản xuất
             </Button>

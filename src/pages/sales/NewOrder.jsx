@@ -100,8 +100,6 @@ export default function NewOrder() {
     if (!head.customer_name.trim()) return 'Chưa nhập tên khách hàng.'
     const ok = lines.filter(l => l.item_name.trim() && parseNum(l.quantity) > 0)
     if (!ok.length) return 'Đơn hàng phải có ít nhất 1 dòng hàng hóa hợp lệ.'
-    if (forSubmit && !validFiles.length)
-      return 'Bắt buộc có ít nhất 1 thiết kế Market trước khi gửi Kế toán duyệt.'
     return null
   }
 
@@ -386,12 +384,12 @@ export default function NewOrder() {
         {/* ============ 3 + 4 ============ */}
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className={validFiles.length ? '' : 'border-amber-300 bg-amber-50/40'}>
-            <CardHeader><CardTitle>3. Thiết kế Market *</CardTitle></CardHeader>
+            <CardHeader><CardTitle>3. Thiết kế Market</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <p className="flex gap-2 rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground">
                 <Info className="size-4 shrink-0" />
-                Chưa có gì? Bấm <b>Lưu nháp</b> — hệ thống cấp mã đơn rồi hiện tên thư mục
-                cần tạo trên Google Drive.
+                Không bắt buộc lúc này. Bấm <b>Lưu nháp</b> để lấy mã đơn rồi bổ sung sau,
+                hoặc gửi duyệt luôn và thêm thiết kế khi có.
               </p>
               <DesignFilesEditor rows={files} setRows={setFiles}
                 folderHint={head.customer_code || 'don-moi'} />
@@ -420,7 +418,7 @@ export default function NewOrder() {
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                   Lưu nháp &amp; lấy mã đơn
                 </Button>
-                <Button variant="outline" size="lg" disabled={busy || !validFiles.length}
+                <Button variant="outline" size="lg" disabled={busy}
                   onClick={() => {
                     const err = validate(true)
                     if (err) return toast.error(err)
@@ -430,8 +428,8 @@ export default function NewOrder() {
                 </Button>
               </div>
               {!validFiles.length && (
-                <p className="text-center text-xs text-muted-foreground">
-                  Gửi duyệt được sau khi có thiết kế Market
+                <p className="text-center text-xs text-amber-700">
+                  Chưa có thiết kế Market — vẫn gửi duyệt được, nhớ bổ sung sau
                 </p>
               )}
             </CardContent>

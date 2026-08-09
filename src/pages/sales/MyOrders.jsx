@@ -11,9 +11,9 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { StatusBadge } from '@/components/ui/badge'
+import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { vnd, dmy, STATUS } from '@/lib/format'
+import { vnd, dmy, STATUS, payStatus } from '@/lib/format'
 import { FilePlus2, Search, Send, Eye, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -32,7 +32,6 @@ export default function MyOrders() {
   ), [orders, q, st])
 
   const submit = async (o) => {
-    if (!o.design_file_path) return toast.error('Đơn chưa có thiết kế Market, không thể gửi duyệt.')
     const { error } = await supabase.from('orders')
       .update({ status: 'pending_accounting', reject_reason: null }).eq('id', o.id)
     if (error) return toast.error(error.message)
@@ -66,8 +65,8 @@ export default function MyOrders() {
                 <TableHead>Ngày</TableHead>
                 <TableHead>Khách hàng</TableHead>
                 <TableHead className="text-right">Tổng tiền</TableHead>
-                <TableHead className="text-right">Còn nợ</TableHead>
-                <TableHead>Trạng thái</TableHead>
+                <TableHead className="min-w-[190px]">Thanh toán</TableHead>
+                <TableHead>Tiến độ đơn</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
@@ -78,7 +77,7 @@ export default function MyOrders() {
                   <TableCell className="whitespace-nowrap text-muted-foreground">{dmy(o.order_date)}</TableCell>
                   <TableCell className="min-w-[180px]">{o.customer_name}</TableCell>
                   <TableCell className="num text-right font-medium">{vnd(o.total_amount)}</TableCell>
-                  <TableCell className={`num text-right ${o.debt_amount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{vnd(o.debt_amount)}</TableCell>
+                  <TableCell><PayCell order={o} /></TableCell>
                   <TableCell><StatusBadge status={o.status} /></TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -88,7 +87,7 @@ export default function MyOrders() {
                           <Button size="sm" variant="outline" onClick={() => setDesign(o)}>
                             <FolderPlus className="size-4" /> Thiết kế
                           </Button>
-                          <Button size="sm" onClick={() => setConfirm(o)} disabled={!o.design_file_path}>
+                          <Button size="sm" onClick={() => setConfirm(o)}>
                             <Send className="size-4" /> Gửi duyệt
                           </Button>
                         </>
@@ -122,5 +121,30 @@ export default function MyOrders() {
         onSaved={reload}
       />
     </>
+  )
+}
+
+/** O hien tinh trang thanh toan: nhan + thanh tien do + so tien con no */
+function PayCell({ order }) {
+  const p = payStatus(order)
+  const last = (order.payments ?? [])
+    .slice()
+    .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0]
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Badge className={p.tone}>{p.label}</Badge>
+        {p.debt > 0 && (
+          <span className="num text-xs font-medium text-rose-600">còn {vnd(p.debt)}</span>
+        )}
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full transition-all ${p.bar}`} style={{ width: `${p.pct}%` }} />
+      </div>
+      <p className="num text-[11px] text-muted-foreground">
+        {p.paid > 0 ? `Đã thu ${vnd(p.paid)} / ${vnd(p.total)}` : `Tổng ${vnd(p.total)}`}
+        {last ? ` · lần cuối ${dmy(last.payment_date)}` : ''}
+      </p>
+    </div>
   )
 }

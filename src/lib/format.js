@@ -55,3 +55,30 @@ export const DEPT_OF_STATUS = {
   delivered: 'Hoàn tất',
   cancelled: '--'
 }
+
+/**
+ * Tinh trang thanh toan cua mot don hang.
+ * Tra ve nhan, mau, phan tram da thu -> dung chung cho danh sach va chi tiet.
+ */
+export function payStatus(order) {
+  const total = Number(order?.total_amount ?? 0)
+  const paid  = Number(order?.paid_amount ?? 0)
+  const debt  = Number(order?.debt_amount ?? (total - paid))
+  const pct   = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0
+
+  if (total <= 0)
+    return { key: 'noprice', label: 'Chưa có giá', tone: 'bg-slate-100 text-slate-600 border-slate-200', bar: 'bg-slate-300', pct: 0, paid, debt, total }
+  if (paid <= 0)
+    return { key: 'unpaid', label: 'Chưa thu', tone: 'bg-rose-50 text-rose-700 border-rose-200', bar: 'bg-rose-400', pct: 0, paid, debt, total }
+  if (paid >= total)
+    return { key: 'paid', label: 'Đã thu đủ', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-500', pct: 100, paid, debt: 0, total }
+  return { key: 'partial', label: `Đã thu ${pct}%`, tone: 'bg-amber-50 text-amber-700 border-amber-200', bar: 'bg-amber-400', pct, paid, debt, total }
+}
+
+/** Nhan loai but toan thu tien */
+export const PAYMENT_TYPE_LABEL = {
+  deposit: 'Đặt cọc',
+  partial: 'Thanh toán từng phần',
+  final: 'Thanh toán nốt',
+  refund: 'Hoàn trả'
+}

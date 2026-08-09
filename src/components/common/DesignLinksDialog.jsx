@@ -59,8 +59,6 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
 
   /** Luu danh sach link. submit = true thi gui luon sang Ke toan. */
   const save = async (submit) => {
-    if (submit && !valid.length)
-      return toast.error('Phải có ít nhất 1 thiết kế mới gửi Kế toán duyệt được.')
 
     setBusy(true)
     try {
@@ -159,7 +157,7 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
           <Button variant="outline" onClick={() => save(false)} disabled={busy}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Lưu link
           </Button>
-          <Button onClick={() => save(true)} disabled={busy || !valid.length}>
+          <Button onClick={() => save(true)} disabled={busy}>
             <Send className="size-4" /> Gửi Kế toán duyệt
           </Button>
         </DialogFooter>

@@ -42,7 +42,8 @@ export default function DesignFilesEditor({ rows, setRows, folderHint }) {
       {!valid.length && (
         <p className="flex gap-2 rounded-lg bg-amber-100/70 p-2.5 text-xs text-amber-800">
           <AlertTriangle className="size-4 shrink-0" />
-          Chưa có thiết kế nào. Đơn chưa gửi Kế toán duyệt được.
+          Chưa có thiết kế nào — đơn vẫn gửi duyệt được, nhưng Sản xuất sẽ chưa làm được.
+          Nhớ bổ sung sớm.
         </p>
       )}
 

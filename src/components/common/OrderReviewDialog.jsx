@@ -18,7 +18,7 @@ export default function OrderReviewDialog({
   if (!head.customer_tax_code?.trim()) warns.push('Chưa có mã số thuế khách hàng — sẽ vướng khi xuất hóa đơn GTGT')
   if (!head.customer_phone?.trim())    warns.push('Chưa có số điện thoại khách hàng')
   if (goodLines.some(l => !Number(l.unit_price))) warns.push('Có dòng hàng đơn giá bằng 0')
-  if (!files.length) warns.push('Chưa có file thiết kế Market')
+  if (!files.length) warns.push('Chưa có file thiết kế Market — Sản xuất sẽ chưa làm được, nhớ bổ sung sau')
 
   return (
     <Dialog open={open} onOpenChange={v => !busy && onOpenChange(v)}>
@@ -100,8 +100,8 @@ export default function OrderReviewDialog({
               ))}
             </div>
           ) : (
-            <p className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-sm text-rose-700">
-              Chưa có thiết kế nào
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-800">
+              Chưa có thiết kế nào — vẫn gửi được, bổ sung sau ở mục Đơn hàng của tôi
             </p>
           )}
         </div>
@@ -131,7 +131,7 @@ export default function OrderReviewDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             <ArrowLeft className="size-4" /> Quay lại sửa
           </Button>
-          <Button onClick={onConfirm} disabled={busy || !files.length}>
+          <Button onClick={onConfirm} disabled={busy}>
             <Send className="size-4" /> Xác nhận gửi Kế toán
           </Button>
         </DialogFooter>
