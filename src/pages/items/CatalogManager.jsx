@@ -18,23 +18,23 @@ const nextNumeric = (list, len) => {
 
 const GROUPS = [
   {
-    table: 'item_materials', key: 'materials', title: 'Chất liệu', width: 2,
-    desc: 'Mã 2 ký tự chữ — AL, IN, CU...', codeMode: 'text',
+    table: 'item_materials', key: 'materials', title: 'Chất liệu', width: 2, bossOnly: true,
+    desc: 'Mã 2 ký tự chữ — AL, IN, CU... Chỉ Giám đốc sửa.', codeMode: 'text',
     fields: [{ k: 'name', label: 'Tên chất liệu', ph: 'vd: Nhôm' }]
   },
   {
-    table: 'item_processes', key: 'processes', title: 'Kiểu gia công', width: 2,
-    desc: 'Mã 2 ký tự chữ — AM (ăn mòn), UV (in UV)...', codeMode: 'text',
+    table: 'item_processes', key: 'processes', title: 'Kiểu gia công', width: 2, bossOnly: true,
+    desc: 'Mã 2 ký tự chữ — AM (ăn mòn), UV (in UV)... Chỉ Giám đốc sửa.', codeMode: 'text',
     fields: [{ k: 'name', label: 'Tên kiểu gia công', ph: 'vd: Khắc laser' }]
   },
   {
     table: 'item_thicknesses', key: 'thicknesses', title: 'Độ dày', width: 3,
-    desc: 'Mã = mm × 100. Nhập số mm, mã tự tính.', codeMode: 'thickness',
+    desc: 'Mã = mm × 100. Nhập số mm, mã tự tính. Kế toán thêm được.', codeMode: 'thickness',
     fields: [{ k: 'value_mm', label: 'Độ dày (mm)', ph: 'vd: 0.65' }]
   },
   {
     table: 'item_sizes', key: 'sizes', title: 'Kích thước', width: 3,
-    desc: 'Mã tự tăng 001, 002... Thêm cỡ mới chỉ cần 1 dòng.', codeMode: 'auto',
+    desc: 'Mã tự tăng 001, 002... Kế toán thêm được, không cần chờ duyệt.', codeMode: 'auto',
     fields: [
       { k: 'name', label: 'Tên kích thước', ph: 'vd: 50x200mm' },
       { k: 'width_mm', label: 'Rộng (mm)', ph: '50' },
@@ -43,26 +43,30 @@ const GROUPS = [
   }
 ]
 
-export default function CatalogManager({ cat, isBoss }) {
+export default function CatalogManager({ cat, isBoss, isAccountant }) {
   if (cat.loading) return <Skeleton className="h-64 w-full" />
+  const canAny = isBoss || isAccountant
   return (
     <div className="space-y-5">
-      {!isBoss && (
-        <p className="flex gap-2 rounded-xl border bg-muted/50 p-3 text-sm text-muted-foreground">
-          <Info className="size-4 shrink-0" />
-          Chỉ Ban Giám đốc được sửa danh mục thành phần. Bạn đang ở chế độ chỉ xem.
-        </p>
-      )}
+      <p className="flex gap-2 rounded-xl border bg-muted/50 p-3 text-sm text-muted-foreground">
+        <Info className="size-4 shrink-0" />
+        {isBoss
+          ? 'Bạn sửa được toàn bộ danh mục. Chất liệu và Kiểu gia công là khung phân loại sản phẩm — cân nhắc kỹ trước khi thêm.'
+          : canAny
+            ? 'Bạn thêm được Độ dày và Kích thước — hai mục phát sinh thường xuyên theo yêu cầu khách. Chất liệu và Kiểu gia công do Ban Giám đốc quản lý.'
+            : 'Bạn đang ở chế độ chỉ xem. Liên hệ Kế toán hoặc Ban Giám đốc để bổ sung danh mục.'}
+      </p>
       <div className="grid gap-5 lg:grid-cols-2">
         {GROUPS.map(g => (
-          <Section key={g.key} g={g} list={cat[g.key]} isBoss={isBoss} reload={cat.reload} />
+          <Section key={g.key} g={g} list={cat[g.key]}
+            canEdit={g.bossOnly ? isBoss : canAny} reload={cat.reload} />
         ))}
       </div>
     </div>
   )
 }
 
-function Section({ g, list, isBoss, reload }) {
+function Section({ g, list, canEdit, reload }) {
   const [f, setF] = useState({ code: '', name: '', value_mm: '', width_mm: '', height_mm: '' })
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -129,14 +133,14 @@ function Section({ g, list, isBoss, reload }) {
           <CardTitle>{g.title} <span className="text-muted-foreground">({list.length})</span></CardTitle>
           <CardDescription>{g.desc}</CardDescription>
         </div>
-        {isBoss && !adding && (
+        {canEdit && !adding && (
           <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
             <Plus className="size-4" /> Thêm
           </Button>
         )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {adding && isBoss && (
+        {adding && canEdit && (
           <div className="space-y-2 rounded-xl border bg-muted/40 p-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Mã sẽ là</span>
@@ -162,21 +166,21 @@ function Section({ g, list, isBoss, reload }) {
 
         <div className="flex flex-wrap gap-1.5">
           {list.map(x => (
-            <button key={x.code} type="button" disabled={!isBoss}
-              onClick={() => isBoss && toggleActive(x)}
+            <button key={x.code} type="button" disabled={!canEdit}
+              onClick={() => canEdit && toggleActive(x)}
               className={cn('flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition',
                 x.is_active ? 'bg-background' : 'bg-muted opacity-50 line-through',
-                isBoss && 'hover:bg-accent')}>
+                canEdit && 'hover:bg-accent')}>
               <code className="font-mono font-bold">{x.code}</code>
               <span>{x.name}</span>
-              {isBoss && (x.is_active
+              {canEdit && (x.is_active
                 ? <Unlock className="size-3 text-emerald-600" />
                 : <Lock className="size-3 text-muted-foreground" />)}
             </button>
           ))}
         </div>
 
-        {isBoss && (
+        {canEdit && (
           <p className="text-xs text-muted-foreground">
             Bấm vào một mục để tạm khóa — mục bị khóa không hiện khi tạo mã mới,
             nhưng mã cũ đã dùng vẫn giữ nguyên.

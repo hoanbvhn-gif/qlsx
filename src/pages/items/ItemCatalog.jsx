@@ -28,6 +28,7 @@ export default function ItemCatalog() {
   const isBoss = profile?.role === 'management'
   // Chi Ke toan va Giam doc duoc them ma hang; KD/SX chi tra cuu
   const canAdd = ['management', 'accounting'].includes(profile?.role)
+  const isAccountant = profile?.role === 'accounting'
   const { items, loading, reload } = useItems()
   const cat = useItemCatalog()
 
@@ -189,7 +190,7 @@ export default function ItemCatalog() {
 
         {/* ---------- TAB 2: DANH MUC THANH PHAN ---------- */}
         <TabsContent value="catalog">
-          <CatalogManager cat={cat} isBoss={isBoss} />
+          <CatalogManager cat={cat} isBoss={isBoss} isAccountant={isAccountant} />
         </TabsContent>
 
         {/* ---------- TAB 3: QUY TAC ---------- */}
