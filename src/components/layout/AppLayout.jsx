@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { ROLE_LABEL } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { donFileDaTatToan } from '@/lib/cleanup'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator
@@ -64,6 +66,22 @@ export default function AppLayout() {
 
   const initials = (profile?.full_name ?? '?')
     .split(' ').slice(-2).map(w => w[0]).join('').toUpperCase()
+
+  // Tu don file Market cua don da giao + da thu du tien.
+  // Chay 1 lan moi phien, chi voi Ke toan / Giam doc.
+  const daDon = useRef(false)
+  useEffect(() => {
+    if (daDon.current) return
+    if (!['accounting', 'management'].includes(profile?.role)) return
+    daDon.current = true
+    donFileDaTatToan().then(({ count, bytes }) => {
+      if (count > 0) {
+        toast.success(
+          `Đã dọn ${count} file thiết kế của đơn đã tất toán — giải phóng ${(bytes / 1048576).toFixed(1)}MB`,
+          { duration: 6000 })
+      }
+    })
+  }, [profile?.role])
 
   return (
     <div className="min-h-screen bg-muted/30">
