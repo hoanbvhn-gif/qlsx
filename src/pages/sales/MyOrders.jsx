@@ -24,6 +24,7 @@ export default function MyOrders() {
   const [st, setSt] = useState('')
   const [sel, setSel] = useState(null)
   const [design, setDesign] = useState(null)
+  const [confirm, setConfirm] = useState(null)   // don dang cho xac nhan gui
 
   const rows = useMemo(() => orders.filter(o =>
     (!st || o.status === st) &&
@@ -31,7 +32,7 @@ export default function MyOrders() {
   ), [orders, q, st])
 
   const submit = async (o) => {
-    if (!o.design_file_path) return toast.error('Đơn chưa có link thiết kế Market, không thể gửi duyệt.')
+    if (!o.design_file_path) return toast.error('Đơn chưa có thiết kế Market, không thể gửi duyệt.')
     const { error } = await supabase.from('orders')
       .update({ status: 'pending_accounting', reject_reason: null }).eq('id', o.id)
     if (error) return toast.error(error.message)
@@ -87,7 +88,7 @@ export default function MyOrders() {
                           <Button size="sm" variant="outline" onClick={() => setDesign(o)}>
                             <FolderPlus className="size-4" /> Thiết kế
                           </Button>
-                          <Button size="sm" onClick={() => submit(o)} disabled={!o.design_file_path}>
+                          <Button size="sm" onClick={() => setConfirm(o)} disabled={!o.design_file_path}>
                             <Send className="size-4" /> Gửi duyệt
                           </Button>
                         </>
@@ -101,6 +102,19 @@ export default function MyOrders() {
         )}
 
       <OrderDetailDialog order={sel} open={!!sel} onOpenChange={v => !v && setSel(null)} />
+
+      {/* Xem lai toan bo don roi moi gui */}
+      <OrderDetailDialog
+        order={confirm} open={!!confirm} onOpenChange={v => !v && setConfirm(null)}
+        footer={confirm && (
+          <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setConfirm(null)}>Quay lại sửa</Button>
+            <Button onClick={async () => { const o = confirm; setConfirm(null); await submit(o) }}>
+              <Send className="size-4" /> Xác nhận gửi Kế toán
+            </Button>
+          </div>
+        )}
+      />
 
       <DesignLinksDialog
         order={design} open={!!design}

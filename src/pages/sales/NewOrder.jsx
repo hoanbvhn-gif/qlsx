@@ -10,9 +10,12 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import DesignLinksDialog from '@/components/common/DesignLinksDialog'
+import OrderReviewDialog from '@/components/common/OrderReviewDialog'
+import ItemPicker from '@/components/common/ItemPicker'
+import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
 import { vnd, parseNum } from '@/lib/format'
-import { Plus, Trash2, Save, Send, Loader2, Link2, AlertTriangle, ExternalLink, Info } from 'lucide-react'
+import { Plus, Trash2, Save, Send, Loader2, Info } from 'lucide-react'
 import { toast } from 'sonner'
 
 const UNITS = ['Cái', 'Bộ', 'Chiếc', 'Kg', 'Tấn', 'Mét', 'M2', 'Thùng', 'Hộp', 'Tờ']
@@ -23,9 +26,6 @@ const blankLine = (n) => ({
   item_code: '', item_name: '', spec: '',
   quantity: '1', unit: 'Cái', unit_price: '', vat_rate: 8
 })
-const blankFile = () => ({ key: crypto.randomUUID(), file_name: '', file_url: '', note: '' })
-
-const isUrl = (s) => /^(https?:\/\/|file:\/\/|\\\\)/i.test((s || '').trim())
 
 export default function NewOrder() {
   const { profile } = useAuth()
@@ -44,6 +44,7 @@ export default function NewOrder() {
 
   // Sau khi luu nhap xong -> mo hop thoai dan link thiet ke (luc nay da co ma don)
   const [savedOrder, setSavedOrder] = useState(null)
+  const [review, setReview] = useState(false)
 
   // Danh muc ma hang da duyet -> go ma tu dien ten/DVT/don gia
   const { items: catalogItems } = useItems({ onlyApproved: true })
@@ -62,25 +63,7 @@ export default function NewOrder() {
     setLines(l => (l.length === 1 ? l : l.filter(x => x.key !== key).map((x, i) => ({ ...x, line_no: i + 1 }))))
   const setLine = (key, patch) => setLines(l => l.map(x => (x.key === key ? { ...x, ...patch } : x)))
 
-  /* ---------- Dong link thiet ke ---------- */
-  const addFile = () => setFiles(f => [...f, blankFile()])
-  const delFile = (key) => setFiles(f => (f.length === 1 ? [blankFile()] : f.filter(x => x.key !== key)))
-  const setFile = (key, patch) => setFiles(f => f.map(x => (x.key === key ? { ...x, ...patch } : x)))
-
-  const validFiles = useMemo(() => files.filter(f => isUrl(f.file_url)), [files])
-
-  /** Go dung ma hang -> tu dien ten hang, DVT, don gia niem yet */
-  const applyItemCode = (key, raw) => {
-    const code = (raw || '').trim().toUpperCase()
-    const found = catalogItems.find(x => x.item_code === code)
-    if (!found) return setLine(key, { item_code: raw })
-    setLine(key, {
-      item_code: code,
-      item_name: found.item_name,
-      unit: found.unit || 'Cái',
-      unit_price: found.list_price > 0 ? String(found.list_price) : ''
-    })
-  }
+  const validFiles = useMemo(() => files.filter(isValidFile), [files])
 
   /* ---------- Tinh tien ---------- */
   const totals = useMemo(() => {
@@ -108,9 +91,7 @@ export default function NewOrder() {
     if (!ok.length) return 'Đơn hàng phải có ít nhất 1 dòng hàng hóa hợp lệ.'
     // RANG BUOC BAT BUOC theo quy trinh
     if (forSubmit && !validFiles.length)
-      return 'Bắt buộc có ít nhất 1 link file thiết kế Market trước khi gửi Kế toán duyệt.'
-    if (files.some(f => f.file_url.trim() && !isUrl(f.file_url)))
-      return 'Có dòng link không hợp lệ. Link phải bắt đầu bằng https:// hoặc \\\\ (ổ mạng).'
+      return 'Bắt buộc có ít nhất 1 thiết kế Market trước khi gửi Kế toán duyệt.'
     return null
   }
 
@@ -140,6 +121,11 @@ export default function NewOrder() {
 
       /* 3. Link chinh = link dau tien (phuc vu rang buoc bat buoc co thiet ke) */
       const primary = validFiles[0] ?? null
+      // Cot design_file_path giu rang buoc "phai co thiet ke moi gui duyet".
+      // Dong kieu upload chua co URL -> ghi dau hieu storage:<path>
+      const primaryRef = primary
+        ? (primary.source === 'link' ? primary.file_url.trim() : `storage:${primary.storage_path}`)
+        : null
 
       /* 4. Tao don hang */
       const { data: order, error: eO } = await supabase.from('orders').insert({
@@ -152,7 +138,7 @@ export default function NewOrder() {
         customer_phone: head.customer_phone,
         sales_id: profile.id,
         status: forSubmit ? 'pending_accounting' : 'draft',
-        design_file_path: primary?.file_url.trim() ?? null,
+        design_file_path: primaryRef,
         design_file_name: primary ? (primary.file_name.trim() || 'Link thiết kế') : null,
         design_uploaded_at: primary ? new Date().toISOString() : null,
         note: head.note
@@ -176,8 +162,11 @@ export default function NewOrder() {
       if (validFiles.length) {
         const payload = validFiles.map((f, i) => ({
           order_id: order.id, line_no: i + 1,
+          source: f.source,
           file_name: f.file_name.trim() || `Thiết kế ${i + 1}`,
-          file_url: f.file_url.trim(),
+          file_url: f.source === 'link' ? f.file_url.trim() : null,
+          storage_path: f.source === 'upload' ? f.storage_path : null,
+          file_size: f.file_size ?? null,
           note: f.note?.trim() || null
         }))
         const { error: eF } = await supabase.from('order_files').insert(payload)
@@ -254,15 +243,10 @@ export default function NewOrder() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Go ma hang se hien goi y tu danh muc da duyet */}
-              <datalist id="dm-ma-hang">
-                {catalogItems.map(it => (
-                  <option key={it.id} value={it.item_code}>{it.item_name}</option>
-                ))}
-              </datalist>
               <p className="text-xs text-muted-foreground">
-                Gõ mã hàng (vd <code className="font-mono">ALAM050001</code>) sẽ tự điền tên hàng,
-                ĐVT và đơn giá niêm yết · <b>{catalogItems.length}</b> mã đang có hiệu lực
+                Ô mã hàng gõ được <b>cả mã lẫn tên tiếng Việt</b> — thử gõ
+                &quot;nhom an mon 0.5&quot; hoặc &quot;ALAM&quot;. Chọn xong tự điền tên hàng,
+                ĐVT và đơn giá · <b>{catalogItems.length}</b> mã đang có hiệu lực
               </p>
 
               <div className="hidden overflow-x-auto md:block">
@@ -284,9 +268,15 @@ export default function NewOrder() {
                     {lines.map((l, i) => (
                       <tr key={l.key} className="border-b last:border-0">
                         <td className="py-2 text-muted-foreground">{i + 1}</td>
-                        <td className="px-1.5"><Input className="h-9 font-mono uppercase" list="dm-ma-hang"
-                          placeholder="ALAM050001" value={l.item_code}
-                          onChange={e => applyItemCode(l.key, e.target.value)} /></td>
+                        <td className="px-1.5">
+                          <ItemPicker items={catalogItems} value={l.item_code}
+                            onPick={it => setLine(l.key, {
+                              item_code: it.item_code, item_name: it.item_name,
+                              unit: it.unit || 'Cái',
+                              unit_price: it.list_price > 0 ? String(it.list_price) : ''
+                            })}
+                            onFreeText={v => setLine(l.key, { item_code: v })} />
+                        </td>
                         <td className="px-1.5"><Input className="h-9" value={l.item_name}
                           onChange={e => setLine(l.key, { item_name: e.target.value })} /></td>
                         <td className="px-1.5"><Input className="h-9 text-right" inputMode="decimal" value={l.quantity}
@@ -328,8 +318,13 @@ export default function NewOrder() {
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <Input placeholder="Mã hàng" list="dm-ma-hang" className="font-mono uppercase"
-                        value={l.item_code} onChange={e => applyItemCode(l.key, e.target.value)} />
+                      <ItemPicker items={catalogItems} value={l.item_code}
+                        onPick={it => setLine(l.key, {
+                          item_code: it.item_code, item_name: it.item_name,
+                          unit: it.unit || 'Cái',
+                          unit_price: it.list_price > 0 ? String(it.list_price) : ''
+                        })}
+                        onFreeText={v => setLine(l.key, { item_code: v })} />
                       <Select value={l.unit} onChange={e => setLine(l.key, { unit: e.target.value })}>
                         {UNITS.map(u => <option key={u}>{u}</option>)}
                       </Select>
@@ -360,61 +355,15 @@ export default function NewOrder() {
         {/* ----- Cot phai: link thiet ke + tong ket ----- */}
         <div className="space-y-5">
           <Card className={validFiles.length ? '' : 'border-amber-300 bg-amber-50/40'}>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>3. Link thiết kế Market *</CardTitle>
-              <Button size="sm" variant="outline" onClick={addFile}>
-                <Plus className="size-4" /> Thêm
-              </Button>
-            </CardHeader>
+            <CardHeader><CardTitle>3. Thiết kế Market *</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              {!validFiles.length && (
-                <p className="flex gap-2 rounded-lg bg-amber-100/70 p-2.5 text-xs text-amber-800">
-                  <AlertTriangle className="size-4 shrink-0" />
-                  Bắt buộc ít nhất 1 link thì đơn mới gửi được sang Kế toán.
-                </p>
-              )}
-
               <p className="flex gap-2 rounded-lg bg-muted/60 p-2.5 text-xs text-muted-foreground">
                 <Info className="size-4 shrink-0" />
-                Chưa có link? Bấm <b>Lưu nháp</b> — hệ thống cấp mã đơn rồi hiện ngay
-                tên thư mục cần tạo trên Google Drive để bạn dán link vào.
+                Chưa có gì? Bấm <b>Lưu nháp</b> — hệ thống cấp mã đơn rồi hiện tên thư mục
+                cần tạo trên Google Drive.
               </p>
-
-              {files.map((f, i) => (
-                <div key={f.key} className="space-y-2 rounded-xl border bg-background p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Thiết kế {i + 1}</span>
-                    <div className="flex items-center gap-1">
-                      {isUrl(f.file_url) && (
-                        <a href={f.file_url} target="_blank" rel="noopener noreferrer"
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                          title="Mở thử link">
-                          <ExternalLink className="size-4" />
-                        </a>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => delFile(f.key)}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  <Input placeholder="Tên file — vd: 25 - nhôm 0.5 - 1t - 2k.pdf"
-                    value={f.file_name} onChange={e => setFile(f.key, { file_name: e.target.value })} />
-                  <div className="relative">
-                    <Link2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input className="pl-9" placeholder="Dán link OneDrive / Google Drive / ổ mạng"
-                      value={f.file_url} onChange={e => setFile(f.key, { file_url: e.target.value })} />
-                  </div>
-                  {f.file_url.trim() && !isUrl(f.file_url) && (
-                    <p className="text-xs text-destructive">
-                      Link phải bắt đầu bằng https:// hoặc \\ (đường dẫn ổ mạng)
-                    </p>
-                  )}
-                </div>
-              ))}
-
-              <p className="text-xs text-muted-foreground">
-                Nhớ đặt quyền chia sẻ &quot;Ai có link đều xem được&quot; để bộ phận Sản xuất mở được file.
-              </p>
+              <DesignFilesEditor rows={files} setRows={setFiles}
+                folderHint={head.customer_code || 'don-moi'} />
             </CardContent>
           </Card>
 
@@ -438,12 +387,16 @@ export default function NewOrder() {
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                   Lưu nháp &amp; lấy mã đơn
                 </Button>
-                <Button variant="outline" onClick={() => save(true)} disabled={busy || !validFiles.length}>
-                  <Send className="size-4" /> Gửi Kế toán duyệt
+                <Button variant="outline" onClick={() => {
+                  const err = validate(true)
+                  if (err) return toast.error(err)
+                  setReview(true)
+                }} disabled={busy || !validFiles.length}>
+                  <Send className="size-4" /> Xem lại &amp; gửi duyệt
                 </Button>
                 {!validFiles.length && (
                   <p className="text-center text-xs text-muted-foreground">
-                    Gửi duyệt được sau khi có link thiết kế
+                    Gửi duyệt được sau khi có thiết kế Market
                   </p>
                 )}
               </div>
@@ -451,6 +404,16 @@ export default function NewOrder() {
           </Card>
         </div>
       </div>
+
+      <OrderReviewDialog
+        open={review} onOpenChange={setReview}
+        head={head}
+        lines={lines.map(l => ({ ...l, quantity: parseNum(l.quantity), unit_price: parseNum(l.unit_price) }))}
+        files={validFiles}
+        totals={totals}
+        busy={busy}
+        onConfirm={async () => { setReview(false); await save(true) }}
+      />
 
       <DesignLinksDialog
         order={savedOrder}

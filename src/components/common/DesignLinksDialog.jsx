@@ -5,17 +5,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/ui/badge'
-import {
-  Plus, Trash2, Copy, Check, FolderPlus, HardDrive, Link2,
-  ExternalLink, Loader2, Save, Send, AlertTriangle
-} from 'lucide-react'
+import DesignFilesEditor, { blankFile as blank, isValidFile } from '@/components/common/DesignFilesEditor'
+import { Copy, Check, FolderPlus, HardDrive, Loader2, Save, Send } from 'lucide-react'
 import { toast } from 'sonner'
-
-const isUrl = (s) => /^(https?:|file:|\\\\)/i.test((s ?? '').trim())
-const blank = () => ({ key: crypto.randomUUID(), file_name: '', file_url: '', note: '' })
 
 /**
  * Quan ly link thiet ke Market cho MOT don hang DA CO MA.
@@ -32,7 +25,12 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
     supabase.from('order_files').select('*').eq('order_id', order.id).order('line_no')
       .then(({ data }) => {
         setRows(data?.length
-          ? data.map(d => ({ key: d.id, file_name: d.file_name, file_url: d.file_url, note: d.note ?? '' }))
+          ? data.map(d => ({
+              key: d.id, source: d.source ?? 'link',
+              file_name: d.file_name, file_url: d.file_url ?? '',
+              storage_path: d.storage_path ?? '', file_size: d.file_size ?? null,
+              note: d.note ?? ''
+            }))
           : [blank()])
       })
   }, [order, open])
@@ -47,10 +45,7 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
     customer_code: order.customer_code
   })
 
-  const valid = rows.filter(r => isUrl(r.file_url))
-  const add = () => setRows(r => [...r, blank()])
-  const del = (key) => setRows(r => (r.length === 1 ? [blank()] : r.filter(x => x.key !== key)))
-  const set = (key, patch) => setRows(r => r.map(x => (x.key === key ? { ...x, ...patch } : x)))
+  const valid = rows.filter(isValidFile)
 
   const copyFolder = async () => {
     try {
@@ -65,9 +60,7 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
   /** Luu danh sach link. submit = true thi gui luon sang Ke toan. */
   const save = async (submit) => {
     if (submit && !valid.length)
-      return toast.error('Phải có ít nhất 1 link thiết kế mới gửi Kế toán duyệt được.')
-    if (rows.some(r => r.file_url.trim() && !isUrl(r.file_url)))
-      return toast.error('Có link không hợp lệ. Link phải bắt đầu bằng https:// hoặc \\\\ (ổ mạng).')
+      return toast.error('Phải có ít nhất 1 thiết kế mới gửi Kế toán duyệt được.')
 
     setBusy(true)
     try {
@@ -78,8 +71,11 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
       if (valid.length) {
         const payload = valid.map((r, i) => ({
           order_id: order.id, line_no: i + 1,
+          source: r.source,
           file_name: r.file_name.trim() || `Thiết kế ${i + 1}`,
-          file_url: r.file_url.trim(),
+          file_url: r.source === 'link' ? r.file_url.trim() : null,
+          storage_path: r.source === 'upload' ? r.storage_path : null,
+          file_size: r.file_size ?? null,
           note: r.note?.trim() || null
         }))
         const { error: eIns } = await supabase.from('order_files').insert(payload)
@@ -88,7 +84,9 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
 
       const primary = valid[0] ?? null
       const patch = {
-        design_file_path: primary?.file_url.trim() ?? null,
+        design_file_path: primary
+          ? (primary.source === 'link' ? primary.file_url.trim() : `storage:${primary.storage_path}`)
+          : null,
         design_file_name: primary ? (primary.file_name.trim() || 'Link thiết kế') : null,
         design_uploaded_at: primary ? new Date().toISOString() : null
       }
@@ -154,52 +152,8 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
           </p>
         </div>
 
-        {/* ----- Buoc 2: dan link ----- */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Danh sách link ({valid.length})</Label>
-            <Button size="sm" variant="outline" onClick={add}><Plus className="size-4" /> Thêm</Button>
-          </div>
-
-          {!valid.length && (
-            <p className="flex gap-2 rounded-lg bg-amber-100/70 p-2.5 text-xs text-amber-800">
-              <AlertTriangle className="size-4 shrink-0" />
-              Chưa có link nào. Đơn chưa gửi Kế toán duyệt được.
-            </p>
-          )}
-
-          {rows.map((r, i) => (
-            <div key={r.key} className="space-y-2 rounded-xl border p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted-foreground">Thiết kế {i + 1}</span>
-                <div className="flex items-center gap-1">
-                  {isUrl(r.file_url) && (
-                    <a href={r.file_url} target="_blank" rel="noopener noreferrer"
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                      title="Mở thử link">
-                      <ExternalLink className="size-4" />
-                    </a>
-                  )}
-                  <Button variant="ghost" size="icon" onClick={() => del(r.key)}>
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-              <Input placeholder="Tên file / thư mục — vd: Thư mục thiết kế đơn"
-                value={r.file_name} onChange={e => set(r.key, { file_name: e.target.value })} />
-              <div className="relative">
-                <Link2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-9" placeholder="Dán link Google Drive / OneDrive / ổ mạng"
-                  value={r.file_url} onChange={e => set(r.key, { file_url: e.target.value })} />
-              </div>
-              {r.file_url.trim() && !isUrl(r.file_url) && (
-                <p className="text-xs text-destructive">
-                  Link phải bắt đầu bằng https:// hoặc \\ (đường dẫn ổ mạng)
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+        {/* ----- Buoc 2: dan link hoac tai file len ----- */}
+        <DesignFilesEditor rows={rows} setRows={setRows} folderHint={order.order_code} />
 
         <DialogFooter>
           <Button variant="outline" onClick={() => save(false)} disabled={busy}>
