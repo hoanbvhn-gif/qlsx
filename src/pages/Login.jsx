@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, HOME_BY_ROLE } from '@/context/AuthContext'
+import { danhThucMayChu } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Loader2, Lock, User, Factory, Eye, EyeOff } from 'lucide-react'
+import { Loader2, Lock, User, Factory, Eye, EyeOff, WifiOff, CheckCircle2 } from 'lucide-react'
 
 export default function Login() {
   const { signIn, profile, session } = useAuth()
@@ -15,6 +16,29 @@ export default function Login() {
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [cho, setCho] = useState(0)          // so giay da cho khi dang nhap
+
+  // Trang thai ket noi may chu: checking | ready | slow | error
+  const [ketNoi, setKetNoi] = useState('checking')
+  const [doTre, setDoTre] = useState(null)
+
+  // Danh thuc may chu ngay khi mo trang, truoc khi nguoi dung go xong mat khau
+  useEffect(() => {
+    const chamTre = setTimeout(() => setKetNoi(k => (k === 'checking' ? 'slow' : k)), 2500)
+    danhThucMayChu().then(({ ok, ms }) => {
+      clearTimeout(chamTre)
+      setDoTre(ms)
+      setKetNoi(ok ? 'ready' : 'error')
+    })
+    return () => clearTimeout(chamTre)
+  }, [])
+
+  // Dem giay khi dang dang nhap de nguoi dung biet he thong van dang chay
+  useEffect(() => {
+    if (!busy) { setCho(0); return }
+    const t = setInterval(() => setCho(c => c + 1), 1000)
+    return () => clearInterval(t)
+  }, [busy])
 
   // Da dang nhap san -> dieu huong thang ve dashboard cua bo phan
   useEffect(() => {
@@ -79,13 +103,42 @@ export default function Login() {
 
               <Button type="submit" className="w-full" size="lg" disabled={busy}>
                 {busy && <Loader2 className="size-4 animate-spin" />}
-                Đăng nhập
+                {busy ? (cho > 0 ? `Đang đăng nhập... ${cho}s` : 'Đang đăng nhập...') : 'Đăng nhập'}
               </Button>
+
+              {busy && cho >= 5 && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Máy chủ đang khởi động sau thời gian nghỉ. Vui lòng đợi thêm,
+                  <b> đừng bấm lại</b> — bấm lại sẽ bắt đầu từ đầu.
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
+        {/* Trang thai ket noi may chu */}
+        <div className="mt-4 flex items-center justify-center gap-1.5 text-xs">
+          {ketNoi === 'checking' && (
+            <><Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+              <span className="text-muted-foreground">Đang kết nối máy chủ...</span></>
+          )}
+          {ketNoi === 'slow' && (
+            <><Loader2 className="size-3.5 animate-spin text-amber-600" />
+              <span className="text-amber-700">Máy chủ đang khởi động, chờ một chút...</span></>
+          )}
+          {ketNoi === 'ready' && (
+            <><CheckCircle2 className="size-3.5 text-emerald-600" />
+              <span className="text-emerald-700">
+                Máy chủ sẵn sàng{doTre != null ? ` · ${doTre}ms` : ''}
+              </span></>
+          )}
+          {ketNoi === 'error' && (
+            <><WifiOff className="size-3.5 text-rose-600" />
+              <span className="text-rose-700">Không kết nối được máy chủ — kiểm tra mạng</span></>
+          )}
+        </div>
+
+        <p className="mt-3 text-center text-xs text-muted-foreground">
           Quên mật khẩu? Liên hệ bộ phận Kế toán để được cấp lại.
         </p>
       </div>
