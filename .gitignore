@@ -4,3 +4,6 @@ dist
 .env.local
 .DS_Store
 *.log
+
+# Cau hinh sao luu — chua mat khau database va service_role key
+backup/config.ps1

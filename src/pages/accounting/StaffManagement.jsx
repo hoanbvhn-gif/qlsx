@@ -8,13 +8,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Input as SearchInput } from '@/components/ui/input'
 import { ROLE_LABEL, dmy } from '@/lib/format'
-import { UserPlus, Loader2, Info, Lock, Unlock } from 'lucide-react'
+import { useMemo } from 'react'
+import { UserPlus, Loader2, Info, Lock, Unlock, Search } from 'lucide-react'
+import { cn, noAccent } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export default function StaffManagement() {
   const [users, setUsers] = useState([])
   const [busy, setBusy] = useState(false)
+  const [q, setQ] = useState('')
+  const [tab, setTab] = useState('all')
   const [f, setF] = useState({ username: '', full_name: '', employee_code: '', phone: '', role: 'sales', password: '' })
 
   const load = () => supabase.from('users').select('*').order('created_at', { ascending: false })
@@ -54,6 +60,30 @@ export default function StaffManagement() {
     load()
   }
 
+  const timKiem = useMemo(() => {
+    const key = noAccent(q)
+    return users.filter(u =>
+      !key || noAccent(`${u.full_name} ${u.username} ${u.employee_code ?? ''}`).includes(key))
+  }, [users, q])
+
+  const nhom = useMemo(() => ({
+    all: timKiem,
+    management: timKiem.filter(u => u.role === 'management'),
+    accounting: timKiem.filter(u => u.role === 'accounting'),
+    sales: timKiem.filter(u => u.role === 'sales'),
+    production: timKiem.filter(u => u.role === 'production'),
+    locked: timKiem.filter(u => !u.is_active)
+  }), [timKiem])
+
+  const TAB = [
+    ['all', 'Tất cả'],
+    ['management', ROLE_LABEL.management],
+    ['accounting', ROLE_LABEL.accounting],
+    ['sales', ROLE_LABEL.sales],
+    ['production', ROLE_LABEL.production],
+    ['locked', 'Đã khóa']
+  ]
+
   return (
     <>
       <PageHeader title="Quản lý nhân sự" desc="Kế toán tạo tài khoản đăng nhập cho nhân viên mới" />
@@ -92,38 +122,69 @@ export default function StaffManagement() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Danh sách nhân viên ({users.length})</CardTitle></CardHeader>
+          <CardHeader className="space-y-3">
+            <CardTitle>Danh sách nhân viên ({users.length})</CardTitle>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <SearchInput className="pl-9" placeholder="Tìm tên, tài khoản, mã NV..."
+                value={q} onChange={e => setQ(e.target.value)} />
+            </div>
+          </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tài khoản</TableHead>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Bộ phận</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
-                  <TableHead className="text-right">TT</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map(u => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-mono text-xs">{u.username}</TableCell>
-                    <TableCell>
-                      {u.full_name}
-                      {u.employee_code && <span className="block text-xs text-muted-foreground">{u.employee_code}</span>}
-                    </TableCell>
-                    <TableCell><Badge className="bg-muted text-foreground">{ROLE_LABEL[u.role]}</Badge></TableCell>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">{dmy(u.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}
-                        className={u.is_active ? 'text-emerald-600' : 'text-rose-600'}>
-                        {u.is_active ? <Unlock className="size-4" /> : <Lock className="size-4" />}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+            <Tabs value={tab} onValueChange={setTab}>
+              <TabsList className="flex-wrap">
+                {TAB.map(([k, label]) => (
+                  <TabsTrigger key={k} value={k} className="gap-1.5">
+                    {label}
+                    <span className={cn('rounded-full px-1.5 text-[11px] font-semibold',
+                      tab === k ? 'bg-muted text-foreground' : 'bg-muted/70 text-muted-foreground')}>
+                      {nhom[k].length}
+                    </span>
+                  </TabsTrigger>
                 ))}
-              </TableBody>
-            </Table>
+              </TabsList>
+
+              {TAB.map(([k]) => (
+                <TabsContent key={k} value={k}>
+                  {!nhom[k].length ? (
+                    <p className="py-10 text-center text-sm text-muted-foreground">
+                      Không có nhân viên nào trong nhóm này
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tài khoản</TableHead>
+                          <TableHead>Họ tên</TableHead>
+                          <TableHead>Bộ phận</TableHead>
+                          <TableHead>Ngày tạo</TableHead>
+                          <TableHead className="text-right">TT</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {nhom[k].map(u => (
+                          <TableRow key={u.id} className={cn(!u.is_active && 'bg-muted/40 text-muted-foreground')}>
+                            <TableCell className="font-mono text-xs">{u.username}</TableCell>
+                            <TableCell>
+                              {u.full_name}
+                              {u.employee_code && <span className="block text-xs text-muted-foreground">{u.employee_code}</span>}
+                            </TableCell>
+                            <TableCell><Badge className="bg-muted text-foreground">{ROLE_LABEL[u.role]}</Badge></TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">{dmy(u.created_at)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button size="sm" variant="ghost" onClick={() => toggleActive(u)}
+                                className={u.is_active ? 'text-emerald-600' : 'text-rose-600'}>
+                                {u.is_active ? <Unlock className="size-4" /> : <Lock className="size-4" />}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
           </CardContent>
         </Card>
       </div>
