@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, HOME_BY_ROLE } from '@/context/AuthContext'
 import { danhThucMayChu } from '@/lib/supabase'
+import { versionLabel } from '@/lib/version'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -140,6 +141,9 @@ export default function Login() {
 
         <p className="mt-3 text-center text-xs text-muted-foreground">
           Quên mật khẩu? Liên hệ bộ phận Kế toán để được cấp lại.
+        </p>
+        <p className="mt-1.5 text-center font-mono text-[11px] text-muted-foreground/70">
+          {versionLabel()}
         </p>
       </div>
     </div>

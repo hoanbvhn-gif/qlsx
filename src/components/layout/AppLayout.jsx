@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { ROLE_LABEL } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { donFileDaTatToan } from '@/lib/cleanup'
+import { versionLabel, COMMIT } from '@/lib/version'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import {
@@ -91,8 +92,11 @@ export default function AppLayout() {
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {items.map(i => <NavItem key={i.to} {...i} />)}
         </nav>
-        <div className="border-t p-3 text-xs text-muted-foreground">
-          QLSX v1.0 · {ROLE_LABEL[profile?.role]}
+        <div className="space-y-0.5 border-t p-3 text-xs text-muted-foreground">
+          <p>QLSX · {ROLE_LABEL[profile?.role]}</p>
+          <p className="font-mono text-[11px]" title={COMMIT ? `commit ${COMMIT}` : 'chạy tại máy'}>
+            {versionLabel()}
+          </p>
         </div>
       </aside>
 

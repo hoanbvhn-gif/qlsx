@@ -30,6 +30,8 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_LOGIN_DOMAIN: ${{ vars.VITE_LOGIN_DOMAIN }}
           VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_BUILD_NO: ${{ github.run_number }}
+          VITE_COMMIT: ${{ github.sha }}
         run: npm run build
       - name: Add .nojekyll
         run: touch dist/.nojekyll
