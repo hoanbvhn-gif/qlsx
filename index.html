@@ -693,7 +693,7 @@ footer{text-align:center;color:var(--ink2);font-size:13px;padding:26px 16px}
    Trước đây gặp lỗi là trang trắng, không biết vì sao.
    Giờ mọi lỗi đều hiện thành khung đỏ đọc được.
    ========================================================= */
-var BAN_WEB = '2026-08-11.sup4';
+var BAN_WEB = '2026-08-11.sup5';
 (function () {
   var daHien = false;
   function hienLoi(tieu, tin, them) {
@@ -18794,33 +18794,6 @@ var BAN_WEB = '2026-08-11.sup4';
     h += '<p class="muted" style="margin:10px 0 0">Con tự điền số câu muốn làm (từ 1 đến 100). ' +
       '“Luyện tập thông minh” tự chọn nhiều câu ở những dạng con còn yếu hoặc chưa làm bao giờ.</p></div>';
 
-    /* --- bài thi cuối chuyên đề --- */
-    var thi = C.thiCua(cd.id), pcCd = C.tienDoCD(cd);
-    var soCauThi = Math.max(C.SO_CAU_THI, cd.DANG.length);
-    h += '<div class="card exam' + (thi.dat ? ' passed' : '') + '">';
-    h += '<h2 class="sec" style="margin-top:0">🎓 Bài thi cuối chuyên đề</h2>';
-    h += '<p class="muted"><b>' + soCauThi + ' câu</b> trộn ngẫu nhiên, <b>mỗi dạng ít nhất một câu</b>. ' +
-      'Trong lúc thi: <b>không hiện đúng/sai, không lời giải, không mở lý thuyết</b>, và đề ' +
-      '<b>không nói dạng bài</b> — con phải tự nhận ra như khi đi thi thật. ' +
-      'Đúng từ <b>' + C.NGUONG_THI + '%</b> (' + C.canDung(soCauThi) + '/' + soCauThi + ' câu) là <b>đạt</b>.</p>';
-    if (thi.dat) {
-      h += '<div class="tip">🎉 <b>Đã tốt nghiệp</b> ngày <b>' + hienNgay(thi.dat.t) +
-        '</b> — điểm cao nhất <b>' + thi.dat.pct + '%</b>. Con vẫn có thể thi lại để phá kỷ lục.</div>';
-    } else if (pcCd < 60) {
-      h += '<div class="warn">Tiến độ chuyên đề mới <b>' + pcCd + '%</b>. Nên học hết các bài và ' +
-        'luyện cho hết dạng màu đỏ rồi hãy thi, sẽ chắc hơn.</div>';
-    }
-    if (thi.lan.length) {
-      h += '<div class="examlog">';
-      thi.lan.slice().reverse().slice(0, 6).forEach(function (x, i) {
-        h += '<span class="pill ' + (x.dat ? 'g' : 'r') + '">' + (i === 0 ? 'Gần nhất: ' : '') +
-          x.dung + '/' + x.tong + ' · ' + x.pct + '% · ' + hienNgay(x.t) + '</span>';
-      });
-      h += '</div>';
-    }
-    h += '<div class="row" style="margin-top:12px"><button class="btn big" data-lt="thi">🎓 ' +
-      (thi.lan.length ? 'Thi lại (đề mới)' : 'Bắt đầu thi') + '</button></div></div>';
-
     /* ---- 🎓 Đường tới tốt nghiệp của riêng chuyên đề này ---- */
     var pcTN = C.tienDoTN(cd), soTN = C.soTotNghiepCD(cd);
     h += '<div class="card tncard"><div class="row" style="align-items:center;gap:18px">';
@@ -18850,6 +18823,33 @@ var BAN_WEB = '2026-08-11.sup4';
         '<button class="btn sm">' + (m === 4 ? 'Ôn lại' : 'Luyện') + '</button></div>';
     });
     h += '</div></div>';
+
+    /* --- bài thi cuối chuyên đề --- */
+    var thi = C.thiCua(cd.id), pcCd = C.tienDoCD(cd);
+    var soCauThi = Math.max(C.SO_CAU_THI, cd.DANG.length);
+    h += '<div class="card exam' + (thi.dat ? ' passed' : '') + '">';
+    h += '<h2 class="sec" style="margin-top:0">🎓 Bài thi cuối chuyên đề</h2>';
+    h += '<p class="muted"><b>' + soCauThi + ' câu</b> trộn ngẫu nhiên, <b>mỗi dạng ít nhất một câu</b>. ' +
+      'Trong lúc thi: <b>không hiện đúng/sai, không lời giải, không mở lý thuyết</b>, và đề ' +
+      '<b>không nói dạng bài</b> — con phải tự nhận ra như khi đi thi thật. ' +
+      'Đúng từ <b>' + C.NGUONG_THI + '%</b> (' + C.canDung(soCauThi) + '/' + soCauThi + ' câu) là <b>đạt</b>.</p>';
+    if (thi.dat) {
+      h += '<div class="tip">🎉 <b>Đã tốt nghiệp</b> ngày <b>' + hienNgay(thi.dat.t) +
+        '</b> — điểm cao nhất <b>' + thi.dat.pct + '%</b>. Con vẫn có thể thi lại để phá kỷ lục.</div>';
+    } else if (pcCd < 60) {
+      h += '<div class="warn">Tiến độ chuyên đề mới <b>' + pcCd + '%</b>. Nên học hết các bài và ' +
+        'luyện cho hết dạng màu đỏ rồi hãy thi, sẽ chắc hơn.</div>';
+    }
+    if (thi.lan.length) {
+      h += '<div class="examlog">';
+      thi.lan.slice().reverse().slice(0, 6).forEach(function (x, i) {
+        h += '<span class="pill ' + (x.dat ? 'g' : 'r') + '">' + (i === 0 ? 'Gần nhất: ' : '') +
+          x.dung + '/' + x.tong + ' · ' + x.pct + '% · ' + hienNgay(x.t) + '</span>';
+      });
+      h += '</div>';
+    }
+    h += '<div class="row" style="margin-top:12px"><button class="btn big" data-lt="thi">🎓 ' +
+      (thi.lan.length ? 'Thi lại (đề mới)' : 'Bắt đầu thi') + '</button></div></div>';
 
     var yeu = cd.DANG.filter(function (d) { return C.mucDo(cd.id, d.id) <= 1; })
       .sort(function (a, b) { return C.mucDo(cd.id, a.id) - C.mucDo(cd.id, b.id); });
