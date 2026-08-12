@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
@@ -15,8 +15,8 @@ import ProductSearchBox from '@/components/common/ProductSearchBox'
 import ItemPicker from '@/components/common/ItemPicker'
 import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
-import { vnd, parseNum } from '@/lib/format'
-import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus } from 'lucide-react'
+import { vnd, parseNum, loiTiengViet } from '@/lib/format'
+import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 const UNITS = ['Cái', 'Bộ', 'Chiếc', 'Kg', 'Tấn', 'Mét', 'M2', 'Thùng', 'Hộp', 'Tờ']
@@ -46,9 +46,17 @@ export default function NewOrder() {
 
   const { items: catalogItems } = useItems({ onlyApproved: true })
 
+  const [maGoiY, setMaGoiY] = useState('')
+
+  const capMaKhachMoi = useCallback(async () => {
+    const { data } = await supabase.rpc('next_customer_code')
+    if (data) { setMaGoiY(data); setHead(h => (h.customer_id ? h : { ...h, customer_code: data })) }
+  }, [])
+
   useEffect(() => {
     supabase.from('customers').select('*').order('name').then(({ data }) => setCustomers(data ?? []))
-  }, [])
+    capMaKhachMoi()
+  }, [capMaKhachMoi])
 
   /* ---------- Dong hang hoa ---------- */
   const addFromCatalog = (it) => {
@@ -89,7 +97,10 @@ export default function NewOrder() {
 
   const pickCustomer = (id) => {
     const c = customers.find(x => x.id === id)
-    if (!c) return setHead(h => ({ ...h, customer_id: '' }))
+    if (!c) return setHead(h => ({
+      ...h, customer_id: '', customer_code: maGoiY,
+      customer_name: '', customer_tax_code: '', customer_address: '', customer_phone: ''
+    }))
     setHead(h => ({
       ...h, customer_id: c.id, customer_code: c.customer_code, customer_name: c.name,
       customer_tax_code: c.tax_code ?? '', customer_address: c.address ?? '', customer_phone: c.phone ?? ''
@@ -114,16 +125,40 @@ export default function NewOrder() {
         await supabase.rpc('next_order_code', { p_date: head.order_date })
       if (eCode) throw eCode
 
-      /* 2. Khach hang moi */
+      /* 2. Khach hang: chon san thi dung luon, chua co thi tao moi.
+            Neu ma go vao trung khach da ton tai -> dung khach do, khong tao trung. */
       let customerId = head.customer_id || null
       if (!customerId) {
-        const { data: c, error: eC } = await supabase.from('customers').insert({
-          customer_code: head.customer_code || 'KH' + Date.now().toString().slice(-6),
-          name: head.customer_name, tax_code: head.customer_tax_code,
-          address: head.customer_address, phone: head.customer_phone, created_by: profile.id
-        }).select('id').single()
-        if (eC) throw eC
-        customerId = c.id
+        const maNhap = (head.customer_code || '').trim().toUpperCase()
+
+        // Ma nay da co trong he thong chua?
+        let daCo = null
+        if (maNhap) {
+          const { data } = await supabase.rpc('tim_khach_theo_ma', { p_code: maNhap })
+          daCo = data?.[0] ?? null
+        }
+
+        if (daCo) {
+          // Trung ma nhung ten khac han -> co the la go nham, dung lai de hoi
+          const a = daCo.name.trim().toLowerCase()
+          const b = head.customer_name.trim().toLowerCase()
+          if (a !== b) {
+            throw new Error(
+              `Mã ${maNhap} đang là của khách "${daCo.name}". ` +
+              `Nếu đúng khách này thì chọn từ danh sách phía trên; ` +
+              `nếu là khách khác thì xóa ô mã để hệ thống tự cấp mã mới.`)
+          }
+          customerId = daCo.id
+        } else {
+          const { data: maMoi } = await supabase.rpc('next_customer_code')
+          const { data: c, error: eC } = await supabase.from('customers').insert({
+            customer_code: maNhap || maMoi || ('KH' + Date.now().toString().slice(-6)),
+            name: head.customer_name, tax_code: head.customer_tax_code,
+            address: head.customer_address, phone: head.customer_phone, created_by: profile.id
+          }).select('id').single()
+          if (eC) throw eC
+          customerId = c.id
+        }
       }
 
       const primary = validFiles[0] ?? null
@@ -189,7 +224,7 @@ export default function NewOrder() {
       }
     } catch (e) {
       if (orderId) await supabase.from('orders').delete().eq('id', orderId)
-      toast.error('Lỗi: ' + (e.message ?? e))
+      toast.error(loiTiengViet(e))
     } finally {
       setBusy(false)
     }
@@ -214,8 +249,25 @@ export default function NewOrder() {
                 ))}
               </Select>
             </div>
-            <F label="Mã khách hàng" value={head.customer_code}
-               onChange={v => setHead(h => ({ ...h, customer_code: v }))} placeholder="KH001" />
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Mã khách hàng</Label>
+                {!head.customer_id && (
+                  <button type="button" onClick={capMaKhachMoi}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <RefreshCw className="size-3" /> Cấp mã mới
+                  </button>
+                )}
+              </div>
+              <Input value={head.customer_code} placeholder={maGoiY || 'KH001'}
+                disabled={!!head.customer_id}
+                onChange={e => setHead(h => ({ ...h, customer_code: e.target.value.toUpperCase() }))} />
+              {!head.customer_id && (
+                <p className="text-xs text-muted-foreground">
+                  Hệ thống đã cấp sẵn mã tiếp theo. Để trống cũng được.
+                </p>
+              )}
+            </div>
             <div className="space-y-1.5 sm:col-span-1 lg:col-span-2">
               <Label>Tên khách hàng *</Label>
               <Input value={head.customer_name} placeholder="Công ty TNHH ..."

@@ -82,3 +82,36 @@ export const PAYMENT_TYPE_LABEL = {
   final: 'Thanh toán nốt',
   refund: 'Hoàn trả'
 }
+
+/**
+ * Doi thong bao loi cua Postgres sang cau tieng Viet nhan vien hieu duoc.
+ * Loi goc van giu o cuoi de tra cuu khi can.
+ */
+export function loiTiengViet(error) {
+  const m = error?.message ?? String(error ?? '')
+
+  if (/customers_customer_code_key/.test(m))
+    return 'Mã khách hàng này đã có trong hệ thống. Hãy chọn khách hàng đó từ danh sách phía trên, hoặc để trống ô mã để hệ thống tự cấp.'
+  if (/uq_items_code|uq_items_combo/.test(m))
+    return 'Mã hàng này đã có trong danh mục.'
+  if (/orders_order_code_key/.test(m))
+    return 'Mã đơn hàng bị trùng. Bấm lưu lại một lần nữa để hệ thống cấp mã mới.'
+  if (/users_username_key/.test(m))
+    return 'Tên đăng nhập này đã có người dùng. Hãy chọn tên khác.'
+  if (/users_email_key|already registered/i.test(m))
+    return 'Email hoặc tên đăng nhập này đã được đăng ký.'
+  if (/uq_amend_pending/.test(m))
+    return 'Bút toán này đã có một yêu cầu điều chỉnh đang chờ Giám đốc duyệt.'
+  if (/duplicate key/.test(m))
+    return 'Dữ liệu bị trùng với bản ghi đã có. Kiểm tra lại mã hoặc tên vừa nhập.'
+  if (/violates foreign key/.test(m))
+    return 'Không thực hiện được vì dữ liệu này đang được dùng ở nơi khác.'
+  if (/row-level security|not authorized|permission denied/i.test(m))
+    return 'Bạn không có quyền thực hiện thao tác này.'
+  if (/JWT expired|token is expired/i.test(m))
+    return 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.'
+  if (/Failed to fetch|NetworkError/i.test(m))
+    return 'Mất kết nối tới máy chủ. Kiểm tra mạng rồi thử lại.'
+
+  return m
+}

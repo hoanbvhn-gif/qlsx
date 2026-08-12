@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { vnd, dmy, parseNum, PAYMENT_TYPE_LABEL } from '@/lib/format'
+import { vnd, dmy, parseNum, PAYMENT_TYPE_LABEL, loiTiengViet } from '@/lib/format'
 import { Loader2, Send, PencilLine, Ban, ArrowRight, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -67,11 +67,7 @@ export default function AmendmentDialog({ payment, open, onOpenChange, onSaved }
     })
     const { error } = await supabase.from('payment_amendments').insert(row)
     setBusy(false)
-    if (error) {
-      if (/uq_amend_pending/.test(error.message))
-        return toast.error('Bút toán này đã có một yêu cầu đang chờ Giám đốc duyệt.')
-      return toast.error(error.message)
-    }
+    if (error) return toast.error(loiTiengViet(error))
     toast.success('Đã gửi yêu cầu, chờ Ban Giám đốc duyệt')
     onSaved?.(); onOpenChange(false)
   }

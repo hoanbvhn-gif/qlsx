@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
 import DesignFilesEditor, { blankFile as blank, isValidFile } from '@/components/common/DesignFilesEditor'
 import { Copy, Check, FolderPlus, HardDrive, Loader2, Save, Send } from 'lucide-react'
+import { loiTiengViet } from '@/lib/format'
 import { toast } from 'sonner'
 
 /**
@@ -99,7 +100,7 @@ export default function DesignLinksDialog({ order, open, onOpenChange, onSaved }
       onSaved?.()
       onOpenChange(false)
     } catch (e) {
-      toast.error('Lỗi: ' + (e.message ?? e))
+      toast.error(loiTiengViet(e))
     } finally {
       setBusy(false)
     }

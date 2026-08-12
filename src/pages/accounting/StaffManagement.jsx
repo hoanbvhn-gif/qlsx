@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Input as SearchInput } from '@/components/ui/input'
-import { ROLE_LABEL, dmy } from '@/lib/format'
+import { ROLE_LABEL, dmy, loiTiengViet } from '@/lib/format'
 import { useMemo } from 'react'
 import { UserPlus, Loader2, Info, Lock, Unlock, Search } from 'lucide-react'
 import { cn, noAccent } from '@/lib/utils'
@@ -47,7 +47,7 @@ export default function StaffManagement() {
       }
     })
     setBusy(false)
-    if (error) return toast.error(error.message)
+    if (error) return toast.error(loiTiengViet(error))
     toast.success(`Đã tạo tài khoản ${f.username}. Bàn giao mật khẩu cho nhân viên.`)
     setF({ username: '', full_name: '', employee_code: '', phone: '', role: 'sales', password: '' })
     setTimeout(load, 800)

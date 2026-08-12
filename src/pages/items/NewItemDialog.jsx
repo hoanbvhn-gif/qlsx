@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { parseNum, vnd } from '@/lib/format'
+import { parseNum, vnd, loiTiengViet } from '@/lib/format'
 import { Loader2, Save, Info, Plus, X, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -87,11 +87,7 @@ export default function NewItemDialog({ open, onOpenChange, cat, isBoss, userId,
       created_by: userId
     })
     setBusy(false)
-    if (error) {
-      if (/uq_items_(code|combo)/.test(error.message))
-        return toast.error(`Mã ${code} đã tồn tại trong danh mục.`)
-      return toast.error(error.message)
-    }
+    if (error) return toast.error(loiTiengViet(error))
     toast.success(isBoss ? `Đã thêm mã ${code}` : `Đã gửi đề xuất mã ${code}, chờ Giám đốc duyệt`)
     onSaved?.(); onOpenChange(false)
   }
