@@ -56,10 +56,16 @@ không bộ phận Sản xuất mở sẽ bị chặn. Hệ thống chấp nhậ
 đường dẫn UNC dạng `\\may-chu\thu-muc`.
 
 ### Mã đơn hàng
-`next_order_code()` sinh chuỗi `[STT 2 chữ số][DD][MM][YYYY]` — ví dụ đơn thứ nhất
-ngày 08/08/2026 → **`0108082026`**. Số thứ tự reset theo ngày, lưu trong bảng
-`order_counters` với `INSERT ... ON CONFLICT DO UPDATE` nên an toàn khi nhiều nhân
-viên lập đơn cùng lúc.
+
+`next_order_code()` sinh **số thứ tự liên tục** dạng `0001`, `0002`, `0003`... dựa trên
+sequence `order_code_seq` của Postgres — an toàn tuyệt đối khi nhiều nhân viên lập đơn
+cùng lúc, không bao giờ trùng.
+
+Số **không reset đầu năm**. Đổi lại thì mã cũ và mã mới có thể trùng nhau, và nhìn mã
+không còn biết được đơn nào lập trước. Vượt 9999 thì tự dài thành `10000`, không gây lỗi.
+
+Bản đầu dùng `[STT][DD][MM][YYYY]` (vd `0109082026`) nhưng quá dài, khó đọc khi gọi
+điện trao đổi với khách và không sắp xếp được theo thứ tự lập đơn.
 
 ### Tính tiền & công nợ
 Không tính ở frontend. Postgres tự lo:

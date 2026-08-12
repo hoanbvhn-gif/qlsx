@@ -231,7 +231,7 @@ export default function NewOrder() {
   return (
     <>
       <PageHeader title="Lập đơn hàng mới"
-        desc="Mã đơn tự sinh khi bấm Lưu theo quy tắc [STT][Ngày][Tháng][Năm]" />
+        desc="Mã đơn tự sinh khi bấm Lưu — số thứ tự liên tục 0001, 0002, 0003..." />
 
       <div className="space-y-5">
         {/* ============ 1. KHACH HANG ============ */}

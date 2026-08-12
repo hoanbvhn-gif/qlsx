@@ -21,7 +21,8 @@ import {
 import { vnd, dmy, STATUS, payStatus } from '@/lib/format'
 import { cn, noAccent } from '@/lib/utils'
 import {
-  Search, Eye, Trash2, AlertTriangle, Download, Receipt, Wallet, PackageX, RotateCcw
+  Search, Eye, Trash2, AlertTriangle, Download, Receipt, Wallet, PackageX, RotateCcw,
+  Phone, MapPin
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -53,7 +54,7 @@ export default function AllOrders() {
     const key = noAccent(q)
     return rows.filter(r =>
       (!st || r.status === st) &&
-      (!key || noAccent(`${r.order_code} ${r.customer_name} ${r.sales_name ?? ''}`).includes(key))
+      (!key || noAccent(`${r.order_code} ${r.customer_name} ${r.sales_name ?? ''} ${r.customer_phone ?? ''} ${r.customer_address ?? ''}`).includes(key))
     )
   }, [rows, q, st])
 
@@ -78,9 +79,10 @@ export default function AllOrders() {
   }
 
   const exportCsv = () => {
-    const head = ['Mã đơn', 'Ngày lập', 'Khách hàng', 'MST', 'NVKD', 'Trạng thái',
-      'Tiền hàng', 'VAT', 'Tổng tiền', 'Đã thu', 'Còn nợ', 'Số dòng hàng', 'Số file TK']
-    const body = list.map(r => [r.order_code, dmy(r.order_date), r.customer_name, r.tax_code ?? '',
+    const head = ['Mã đơn', 'Ngày lập', 'Khách hàng', 'MST', 'Điện thoại', 'Địa chỉ', 'NVKD',
+      'Trạng thái', 'Tiền hàng', 'VAT', 'Tổng tiền', 'Đã thu', 'Còn nợ', 'Số dòng hàng', 'Số file TK']
+    const body = list.map(r => [r.order_code, dmy(r.order_date), r.customer_name,
+      r.customer_tax_code || r.tax_code || '', r.customer_phone ?? '', r.customer_address ?? '',
       r.sales_name ?? '', STATUS[r.status]?.label ?? r.status, r.subtotal, r.vat_amount,
       r.total_amount, r.paid_amount, r.debt_amount, r.so_dong_hang, r.so_file_thiet_ke])
     const csv = '﻿' + [head, ...body]
@@ -114,7 +116,7 @@ export default function AllOrders() {
         <CardContent className="flex flex-col gap-2 p-4 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Tìm mã đơn / khách hàng / nhân viên kinh doanh..."
+            <Input className="pl-9" placeholder="Tìm mã đơn / khách hàng / NVKD / số điện thoại / địa chỉ..."
               value={q} onChange={e => setQ(e.target.value)} />
           </div>
           <Select className="sm:w-56" value={st} onChange={e => setSt(e.target.value)}>
@@ -150,9 +152,24 @@ export default function AllOrders() {
                       {r.order_code}
                       <span className="block font-sans text-xs text-muted-foreground">{dmy(r.order_date)}</span>
                     </TableCell>
-                    <TableCell className="min-w-[180px]">
-                      {r.customer_name}
-                      {r.tax_code && <span className="block text-xs text-muted-foreground">MST {r.tax_code}</span>}
+                    <TableCell className="min-w-[260px]">
+                      <p className="font-medium">{r.customer_name}</p>
+                      <div className="space-y-0.5 text-xs text-muted-foreground">
+                        {(r.customer_tax_code || r.tax_code) && (
+                          <p>MST {r.customer_tax_code || r.tax_code}</p>
+                        )}
+                        {r.customer_phone && (
+                          <p className="flex items-center gap-1">
+                            <Phone className="size-3 shrink-0" /> {r.customer_phone}
+                          </p>
+                        )}
+                        {r.customer_address && (
+                          <p className="flex items-start gap-1">
+                            <MapPin className="mt-0.5 size-3 shrink-0" />
+                            <span className="line-clamp-2">{r.customer_address}</span>
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{r.sales_name || '--'}</TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
