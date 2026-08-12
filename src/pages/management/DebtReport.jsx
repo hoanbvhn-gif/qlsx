@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import { useOrders } from '@/hooks/useOrders'
 import PageHeader from '@/components/common/PageHeader'
 import StatCard from '@/components/common/StatCard'
 import OrderDetailDialog from '@/components/common/OrderDetailDialog'
+import PaymentDialog from '@/components/common/PaymentDialog'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/badge'
 import { vnd, dmy } from '@/lib/format'
-import { Search, Wallet, Users, AlertTriangle, Download, ChevronRight } from 'lucide-react'
+import { Search, Wallet, Users, AlertTriangle, Download, ChevronRight, Plus } from 'lucide-react'
 
 export default function DebtReport() {
   const [rows, setRows] = useState([])
@@ -20,6 +22,14 @@ export default function DebtReport() {
   const [openId, setOpenId] = useState(null)
   const { orders } = useOrders()
   const [sel, setSel] = useState(null)
+  const [thu, setThu] = useState(null)      // don dang ghi thu tien
+  const { profile } = useAuth()
+  const coTheGhiThu = ['accounting', 'management'].includes(profile?.role)
+
+  const taiLai = () => {
+    supabase.from('v_customer_debt').select('*').order('debt_amount', { ascending: false })
+      .then(({ data }) => setRows(data ?? []))
+  }
 
   useEffect(() => {
     supabase.from('v_customer_debt').select('*').order('debt_amount', { ascending: false })
@@ -104,15 +114,23 @@ export default function DebtReport() {
                         <CardContent className="space-y-1.5">
                           {orders.filter(o => o.customer_id === r.customer_id && !['draft', 'cancelled'].includes(o.status))
                             .map(o => (
-                              <div key={o.id} onClick={() => setSel(o)}
-                                className="flex cursor-pointer flex-wrap items-center gap-2 rounded-lg border bg-background p-2.5 text-sm hover:bg-accent">
-                                <span className="font-mono font-medium">#{o.order_code}</span>
-                                <span className="text-muted-foreground">{dmy(o.order_date)}</span>
-                                <StatusBadge status={o.status} />
-                                <span className="num ml-auto">{vnd(o.total_amount)}</span>
+                              <div key={o.id}
+                                className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-2.5 text-sm">
+                                <button type="button" onClick={() => setSel(o)}
+                                  className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-left hover:underline">
+                                  <span className="font-mono font-medium">#{o.order_code}</span>
+                                  <span className="text-muted-foreground">{dmy(o.order_date)}</span>
+                                  <StatusBadge status={o.status} />
+                                </button>
+                                <span className="num">{vnd(o.total_amount)}</span>
                                 <span className={`num w-28 text-right font-semibold ${Number(o.debt_amount) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                   nợ {vnd(o.debt_amount)}
                                 </span>
+                                {coTheGhiThu && Number(o.debt_amount) > 0 && (
+                                  <Button size="sm" variant="outline" onClick={() => setThu(o)}>
+                                    <Plus className="size-4" /> Ghi thu
+                                  </Button>
+                                )}
                               </div>
                             ))}
                         </CardContent>
@@ -127,6 +145,9 @@ export default function DebtReport() {
       )}
 
       <OrderDetailDialog order={sel} open={!!sel} onOpenChange={v => !v && setSel(null)} />
+
+      <PaymentDialog order={thu} onClose={() => setThu(null)}
+        onDone={taiLai} userId={profile?.id} />
     </>
   )
 }
