@@ -91,8 +91,8 @@ export default function MyOrders() {
                       <Button size="sm" variant="ghost" onClick={() => setSel(o)}><Eye className="size-4" /></Button>
                       {COTHU.includes(o.status) && Number(o.debt_amount) > 0 && (
                         <Button size="sm" variant="outline" onClick={() => setThu(o)}
-                          title="Khách đã chuyển tiền — gắn khoản tiền về vào đơn này">
-                          <Landmark className="size-4" /> Tiền về
+                          title="Khách trả tiền — chuyển khoản hoặc tiền mặt">
+                          <Landmark className="size-4" /> Thu tiền
                         </Button>
                       )}
                       {['draft', 'rejected'].includes(o.status) && (
@@ -123,7 +123,7 @@ export default function MyOrders() {
         footer={sel && COTHU.includes(sel.status) && (
           <div className="flex justify-end border-t pt-4">
             <Button variant="outline" onClick={() => { const o = sel; setSel(null); setThu(o) }}>
-              <Landmark className="size-4" /> Ghi nhận tiền về
+              <Landmark className="size-4" /> Ghi nhận tiền khách trả
             </Button>
           </div>
         )} />

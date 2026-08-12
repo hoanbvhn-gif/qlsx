@@ -17,10 +17,12 @@ import AnhMau from '@/components/common/AnhMau'
 import CustomerPicker from '@/components/common/CustomerPicker'
 import EntityPicker from '@/components/common/EntityPicker'
 import ChungTu from '@/components/common/ChungTu'
+import BankTxnPicker from '@/components/common/BankTxnPicker'
 import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
 import { useEntities } from '@/hooks/useEntities'
-import { vnd, parseNum, loiTiengViet } from '@/lib/format'
+import { vnd, dmy, parseNum, loiTiengViet } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus, RefreshCw, HandCoins, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -43,13 +45,37 @@ export default function NewOrder() {
     customer_id: '', customer_code: '', customer_name: '',
     customer_tax_code: '', customer_address: '', customer_phone: '',
     order_date: new Date().toISOString().slice(0, 10), note: '',
-    deposit_expected: '', deposit_note: '', deposit_proof_path: ''
+    deposit_expected: '', deposit_note: '', deposit_proof_path: '', deposit_bank_txn_id: null
   })
   const [lines, setLines] = useState([])
   const [files, setFiles] = useState([blankFile()])
   const [busy, setBusy] = useState(false)
   const [savedOrder, setSavedOrder] = useState(null)
   const [review, setReview] = useState(false)
+
+  // Coc: khach chuyen khoan (chi ra khoan trong bang ke) hay dua tien mat
+  const [cachCoc, setCachCoc] = useState('chua')   // chua | ck | tm
+  const [khoanCoc, setKhoanCoc] = useState(null)
+
+  const doiCachCoc = (v) => {
+    setCachCoc(v)
+    setKhoanCoc(null)
+    setHead(h => ({
+      ...h, deposit_bank_txn_id: null, deposit_expected: '',
+      deposit_note: v === 'tm' ? 'Tiền mặt' : ''
+    }))
+  }
+
+  /** Chon khoan tien ve -> tu dien so tien coc va hinh thuc */
+  const chonKhoanCoc = (r) => {
+    setKhoanCoc(r)
+    setHead(h => ({
+      ...h,
+      deposit_bank_txn_id: r.id,
+      deposit_expected: String(Math.round(Number(r.con_lai ?? r.amount_in))),
+      deposit_note: `Chuyển khoản ${r.bank_name ?? ''} ${dmy(r.posting_date)} · ${r.bank_ref}`.trim()
+    }))
+  }
 
   const { items: catalogItems } = useItems({ onlyApproved: true })
   const { entities } = useEntities()
@@ -195,6 +221,7 @@ export default function NewOrder() {
         deposit_expected: parseNum(head.deposit_expected),
         deposit_note: head.deposit_note || null,
         deposit_proof_path: head.deposit_proof_path || null,
+        deposit_bank_txn_id: head.deposit_bank_txn_id,
         note: head.note
       }).select('id, order_code').single()
       if (eO) throw eO
@@ -517,42 +544,61 @@ export default function NewOrder() {
                   <HandCoins className="size-4 text-sky-700" />
                   <Label className="text-sky-900">Khách đặt cọc</Label>
                 </div>
-                <Input inputMode="decimal" placeholder="0" value={head.deposit_expected}
-                  onChange={e => setHead(h => ({ ...h, deposit_expected: e.target.value }))} />
-                {parseNum(head.deposit_expected) > 0 && (
-                  <div className="num space-y-0.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Cọc</span>
-                      <b className="text-sky-800">{vnd(parseNum(head.deposit_expected))} đ</b>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Còn lại phải thu</span>
-                      <b className={totals.total - parseNum(head.deposit_expected) > 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                        {vnd(Math.max(0, totals.total - parseNum(head.deposit_expected)))} đ
-                      </b>
-                    </div>
-                  </div>
-                )}
-                <Input placeholder="Hình thức — vd: chuyển khoản VCB, tiền mặt..."
-                  value={head.deposit_note}
-                  onChange={e => setHead(h => ({ ...h, deposit_note: e.target.value }))} />
-
-                <div className="flex items-center gap-3 rounded-lg border border-sky-200 bg-white p-2.5">
-                  <ChungTu value={head.deposit_proof_path}
-                    onChange={v => setHead(h => ({ ...h, deposit_proof_path: v }))} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium">Ảnh chuyển khoản</p>
-                    <p className="text-xs text-muted-foreground">
-                      {head.deposit_proof_path
-                        ? 'Đã đính — Kế toán sẽ mở ra đối chiếu sao kê'
-                        : 'Chụp màn hình chuyển khoản của khách rồi đính vào đây'}
-                    </p>
-                  </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[['chua', 'Chưa cọc'], ['ck', 'Chuyển khoản'], ['tm', 'Tiền mặt']].map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => doiCachCoc(v)}
+                      className={cn('rounded-lg border-2 px-2 py-2 text-xs font-medium transition',
+                        cachCoc === v ? 'border-sky-500 bg-white text-sky-900' : 'border-transparent bg-white/60 text-muted-foreground hover:bg-white')}>
+                      {l}
+                    </button>
+                  ))}
                 </div>
 
-                <p className="text-xs text-sky-800">
-                  Đây là <b>khai báo</b>. Kế toán kiểm tra tài khoản rồi xác nhận thì mới vào sổ thu tiền.
-                </p>
+                {cachCoc === 'ck' && (
+                  <BankTxnPicker
+                    order={{ debt_amount: totals.total }}
+                    value={khoanCoc}
+                    soTienGhi={parseNum(head.deposit_expected)}
+                    onPick={chonKhoanCoc}
+                    onClear={() => {
+                      setKhoanCoc(null)
+                      setHead(h => ({ ...h, deposit_bank_txn_id: null }))
+                    }} />
+                )}
+
+                {cachCoc !== 'chua' && (
+                  <>
+                    <Input inputMode="decimal" placeholder="Số tiền cọc" value={head.deposit_expected}
+                      onChange={e => setHead(h => ({ ...h, deposit_expected: e.target.value }))} />
+                    {parseNum(head.deposit_expected) > 0 && (
+                      <div className="num space-y-0.5 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cọc</span>
+                          <b className="text-sky-800">{vnd(parseNum(head.deposit_expected))} đ</b>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Còn lại phải thu</span>
+                          <b className={totals.total - parseNum(head.deposit_expected) > 0 ? 'text-rose-600' : 'text-emerald-600'}>
+                            {vnd(Math.max(0, totals.total - parseNum(head.deposit_expected)))} đ
+                          </b>
+                        </div>
+                      </div>
+                    )}
+                    <Input placeholder={cachCoc === 'tm' ? 'Ai đưa, đưa ở đâu' : 'Ghi chú thêm'}
+                      value={head.deposit_note}
+                      onChange={e => setHead(h => ({ ...h, deposit_note: e.target.value }))} />
+                  </>
+                )}
+
+                {cachCoc !== 'chua' && (
+                  <p className="text-xs text-sky-800">
+                    {khoanCoc
+                      ? <>Đã chỉ đúng khoản khách chuyển — Kế toán bấm xác nhận là vào sổ, khỏi dò sao kê.</>
+                      : cachCoc === 'tm'
+                        ? <>Tiền mặt là <b>lời khai</b>. Kế toán đếm tiền thực tế rồi mới xác nhận vào sổ.</>
+                        : <>Chọn khoản tiền về ở trên để Kế toán khỏi phải dò lại sao kê.</>}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">

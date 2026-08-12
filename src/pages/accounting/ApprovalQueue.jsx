@@ -117,6 +117,9 @@ export default function ApprovalQueue() {
                         <p className="flex items-center gap-2 text-xs text-sky-900">
                           <HandCoins className="size-4 shrink-0" />
                           Kinh doanh khai khách đã cọc <b className="num">{vnd(o.deposit_expected)} đ</b>
+                          {o.deposit_bank_txn_id && (
+                            <b className="text-emerald-700"> · đã chỉ đúng khoản trong bảng kê</b>
+                          )}
                           {o.deposit_note ? ` · ${o.deposit_note}` : ''}
                           {o.deposit_proof_path
                             ? <b className="text-emerald-700"> · có ảnh chuyển khoản</b>
@@ -182,6 +185,12 @@ export default function ApprovalQueue() {
               <div className="flex justify-between"><span>Giá trị đơn</span><b className="num">{vnd(coc.total_amount)} đ</b></div>
               <div className="flex justify-between"><span>Kinh doanh khai</span>
                 <b className="num text-sky-700">{vnd(coc.deposit_expected)} đ</b></div>
+              {coc.deposit_bank_txn_id && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900">
+                  Kinh doanh đã chỉ đích danh khoản tiền về trong bảng kê ngân hàng.
+                  Bấm xác nhận là bút toán tự gắn với khoản đó, khỏi dò lại sao kê.
+                </div>
+              )}
               {coc.deposit_note && (
                 <div className="flex justify-between"><span>Hình thức</span><b>{coc.deposit_note}</b></div>
               )}

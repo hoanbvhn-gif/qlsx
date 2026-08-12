@@ -6,7 +6,7 @@ const ORDER_SELECT = `
   customer_id, customer_name, customer_tax_code, customer_address, customer_phone,
   sales_id, subtotal, vat_amount, total_amount, paid_amount, pending_amount, debt_amount, is_settled,
   design_file_path, design_file_name, note, reject_reason,
-  deposit_expected, deposit_note, deposit_confirmed, deposit_proof_path, cancel_reason, entity_id,
+  deposit_expected, deposit_note, deposit_confirmed, deposit_proof_path, deposit_bank_txn_id, cancel_reason, entity_id,
   entity:entity_id ( id, code, short_name, tax_code, default_vat_rate ),
   submitted_at, approved_at, production_started_at, estimated_delivery_date,
   completed_at, delivered_at, created_at,
