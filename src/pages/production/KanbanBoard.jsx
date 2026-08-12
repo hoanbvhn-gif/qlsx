@@ -16,7 +16,7 @@ import { vnd, dmy, num, loiTiengViet } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
   Play, CheckCircle2, Truck, Calendar, Package, Eye, Loader2, GripVertical,
-  Ban, Undo2, AlertTriangle, XCircle
+  Ban, Undo2, AlertTriangle, XCircle, ImageOff
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -147,11 +147,26 @@ export default function KanbanBoard() {
                         </div>
                       </div>
 
-                      <div className="space-y-1 rounded-lg bg-muted/50 p-2 text-xs">
+                      <div className="space-y-1.5 rounded-lg bg-muted/50 p-2 text-xs">
                         {(o.order_items ?? []).slice(0, 3).map(it => (
-                          <div key={it.id} className="flex justify-between gap-2">
-                            <span className="truncate">{it.item_name}</span>
-                            <span className="num shrink-0 font-medium">{num(it.quantity, 0)} {it.unit}</span>
+                          <div key={it.id} className="flex items-center gap-2">
+                            {it.image_url ? (
+                              <a href={it.image_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                <img src={it.image_url} alt={it.item_name}
+                                  className="size-9 rounded border object-cover transition hover:brightness-90" />
+                              </a>
+                            ) : (
+                              <div className="flex size-9 shrink-0 items-center justify-center rounded border border-dashed">
+                                <ImageOff className="size-3.5 text-muted-foreground/50" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">{it.item_name}</p>
+                              {it.delivery_date && (
+                                <p className="text-[11px] text-muted-foreground">giao {dmy(it.delivery_date)}</p>
+                              )}
+                            </div>
+                            <span className="num shrink-0 font-semibold">{num(it.quantity, 0)} {it.unit}</span>
                           </div>
                         ))}
                         {(o.order_items?.length ?? 0) > 3 && (

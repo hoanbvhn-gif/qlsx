@@ -6,10 +6,11 @@ const ORDER_SELECT = `
   customer_id, customer_name, customer_tax_code, customer_address, customer_phone,
   sales_id, subtotal, vat_amount, total_amount, paid_amount, debt_amount, is_settled,
   design_file_path, design_file_name, note, reject_reason,
+  deposit_expected, deposit_note, deposit_confirmed, cancel_reason,
   submitted_at, approved_at, production_started_at, estimated_delivery_date,
   completed_at, delivered_at, created_at,
   sales:sales_id ( full_name, employee_code ),
-  order_items ( id, line_no, item_code, item_name, spec, quantity, unit, unit_price, vat_rate, line_amount, line_vat, line_total ),
+  order_items ( id, line_no, item_code, item_name, spec, quantity, unit, unit_price, vat_rate, line_amount, line_vat, line_total, delivery_date, image_url, file_url, file_name ),
   order_files ( id, line_no, source, file_name, file_url, storage_path, file_size, note ),
   payments ( id, payment_date, payment_type, amount, method, reference_no, transfer_note, note, reconciled )
 `

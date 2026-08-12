@@ -13,10 +13,11 @@ import DesignLinksDialog from '@/components/common/DesignLinksDialog'
 import OrderReviewDialog from '@/components/common/OrderReviewDialog'
 import ProductSearchBox from '@/components/common/ProductSearchBox'
 import ItemPicker from '@/components/common/ItemPicker'
+import AnhMau from '@/components/common/AnhMau'
 import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
 import { vnd, parseNum, loiTiengViet } from '@/lib/format'
-import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus, RefreshCw, HandCoins } from 'lucide-react'
 import { toast } from 'sonner'
 
 const UNITS = ['Cái', 'Bộ', 'Chiếc', 'Kg', 'Tấn', 'Mét', 'M2', 'Thùng', 'Hộp', 'Tờ']
@@ -25,7 +26,8 @@ const VAT_RATES = [0, 5, 8, 10]
 const blankLine = () => ({
   key: crypto.randomUUID(),
   item_code: '', item_name: '', spec: '',
-  quantity: '1', unit: 'Cái', unit_price: '', vat_rate: 8
+  quantity: '1', unit: 'Cái', unit_price: '', vat_rate: 8,
+  delivery_date: '', image_url: '', file_url: '', file_name: ''
 })
 
 export default function NewOrder() {
@@ -36,7 +38,8 @@ export default function NewOrder() {
   const [head, setHead] = useState({
     customer_id: '', customer_code: '', customer_name: '',
     customer_tax_code: '', customer_address: '', customer_phone: '',
-    order_date: new Date().toISOString().slice(0, 10), note: ''
+    order_date: new Date().toISOString().slice(0, 10), note: '',
+    deposit_expected: '', deposit_note: ''
   })
   const [lines, setLines] = useState([])
   const [files, setFiles] = useState([blankFile()])
@@ -180,6 +183,8 @@ export default function NewOrder() {
         design_file_path: primaryRef,
         design_file_name: primary ? (primary.file_name.trim() || 'Thiết kế') : null,
         design_uploaded_at: primary ? new Date().toISOString() : null,
+        deposit_expected: parseNum(head.deposit_expected),
+        deposit_note: head.deposit_note || null,
         note: head.note
       }).select('id, order_code').single()
       if (eO) throw eO
@@ -192,7 +197,11 @@ export default function NewOrder() {
           order_id: order.id, line_no: i + 1,
           item_code: l.item_code || null, item_name: l.item_name, spec: l.spec || null,
           quantity: parseNum(l.quantity), unit: l.unit,
-          unit_price: parseNum(l.unit_price), vat_rate: Number(l.vat_rate) || 0
+          unit_price: parseNum(l.unit_price), vat_rate: Number(l.vat_rate) || 0,
+          delivery_date: l.delivery_date || null,
+          image_url: l.image_url || null,
+          file_url: l.file_url || null,
+          file_name: l.file_name || null
         }))
       const { error: eI } = await supabase.from('order_items').insert(payloadItems)
       if (eI) throw eI
@@ -325,7 +334,9 @@ export default function NewOrder() {
                         <th className="w-28 px-2 py-2.5 text-left">ĐVT</th>
                         <th className="w-36 px-2 py-2.5 text-right">Đơn giá</th>
                         <th className="w-24 px-2 py-2.5 text-right">VAT</th>
-                        <th className="w-40 px-2 py-2.5 text-right">Thành tiền</th>
+                        <th className="w-36 px-2 py-2.5 text-right">Thành tiền</th>
+                        <th className="w-36 px-2 py-2.5 text-left">Ngày giao</th>
+                        <th className="w-28 px-2 py-2.5 text-center">Ảnh mẫu</th>
                         <th className="w-12" />
                       </tr>
                     </thead>
@@ -368,6 +379,16 @@ export default function NewOrder() {
                           </td>
                           <td className="num px-2 text-right font-semibold">
                             {vnd(parseNum(l.quantity) * parseNum(l.unit_price))}
+                          </td>
+                          <td className="px-2">
+                            <Input className="h-9 text-xs" type="date" value={l.delivery_date}
+                              onChange={e => setLine(l.key, { delivery_date: e.target.value })} />
+                          </td>
+                          <td className="px-2">
+                            <div className="flex justify-center">
+                              <AnhMau value={l.image_url} ten={l.item_name}
+                                onChange={v => setLine(l.key, { image_url: v })} />
+                            </div>
                           </td>
                           <td className="pl-1">
                             <Button variant="ghost" size="icon"
@@ -414,6 +435,16 @@ export default function NewOrder() {
                         <Select value={l.vat_rate} onChange={e => setLine(l.key, { vat_rate: e.target.value })}>
                           {VAT_RATES.map(v => <option key={v} value={v}>VAT {v}%</option>)}
                         </Select>
+                        <div className="col-span-2 space-y-1">
+                          <Label className="text-xs">Ngày giao mặt hàng này</Label>
+                          <Input type="date" value={l.delivery_date}
+                            onChange={e => setLine(l.key, { delivery_date: e.target.value })} />
+                        </div>
+                        <div className="col-span-2 flex items-center gap-2">
+                          <Label className="text-xs">Ảnh mẫu</Label>
+                          <AnhMau value={l.image_url} ten={l.item_name}
+                            onChange={v => setLine(l.key, { image_url: v })} />
+                        </div>
                         <div className="num col-span-2 flex items-center justify-end border-t pt-2 text-sm font-semibold">
                           {vnd(parseNum(l.quantity) * parseNum(l.unit_price))} đ
                         </div>
@@ -451,9 +482,39 @@ export default function NewOrder() {
           <Card>
             <CardHeader><CardTitle>4. Ghi chú &amp; hoàn tất</CardTitle></CardHeader>
             <CardContent className="space-y-4">
+              {/* ----- Tien coc khach dua ngay khi dat hang ----- */}
+              <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50/50 p-3">
+                <div className="flex items-center gap-2">
+                  <HandCoins className="size-4 text-sky-700" />
+                  <Label className="text-sky-900">Khách đặt cọc</Label>
+                </div>
+                <Input inputMode="decimal" placeholder="0" value={head.deposit_expected}
+                  onChange={e => setHead(h => ({ ...h, deposit_expected: e.target.value }))} />
+                {parseNum(head.deposit_expected) > 0 && (
+                  <div className="num space-y-0.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cọc</span>
+                      <b className="text-sky-800">{vnd(parseNum(head.deposit_expected))} đ</b>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Còn lại phải thu</span>
+                      <b className={totals.total - parseNum(head.deposit_expected) > 0 ? 'text-rose-600' : 'text-emerald-600'}>
+                        {vnd(Math.max(0, totals.total - parseNum(head.deposit_expected)))} đ
+                      </b>
+                    </div>
+                  </div>
+                )}
+                <Input placeholder="Hình thức — vd: chuyển khoản VCB, tiền mặt..."
+                  value={head.deposit_note}
+                  onChange={e => setHead(h => ({ ...h, deposit_note: e.target.value }))} />
+                <p className="text-xs text-sky-800">
+                  Đây là <b>khai báo</b>. Kế toán kiểm tra tài khoản rồi xác nhận thì mới vào sổ thu tiền.
+                </p>
+              </div>
+
               <div className="space-y-1.5">
                 <Label>Ghi chú</Label>
-                <Textarea rows={4} value={head.note}
+                <Textarea rows={3} value={head.note}
                   onChange={e => setHead(h => ({ ...h, note: e.target.value }))}
                   placeholder="Yêu cầu đặc biệt, thời hạn giao..." />
               </div>

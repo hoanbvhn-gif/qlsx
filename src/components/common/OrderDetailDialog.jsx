@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Badge, StatusBadge } from '@/components/ui/badge'
 import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS, payStatus, PAYMENT_TYPE_LABEL } from '@/lib/format'
-import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt } from 'lucide-react'
+import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff, HandCoins } from 'lucide-react'
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
   const [busyId, setBusyId] = useState(null)
@@ -100,6 +100,7 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">Ảnh</TableHead>
               <TableHead>Mã hàng</TableHead>
               <TableHead>Tên hàng hóa</TableHead>
               <TableHead className="text-right">SL</TableHead>
@@ -107,11 +108,24 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
               <TableHead className="text-right">Đơn giá</TableHead>
               <TableHead className="text-right">Thành tiền</TableHead>
               <TableHead className="text-right">VAT</TableHead>
+              <TableHead>Ngày giao</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(order.order_items ?? []).sort((a, b) => a.line_no - b.line_no).map(it => (
               <TableRow key={it.id}>
+                <TableCell>
+                  {it.image_url ? (
+                    <a href={it.image_url} target="_blank" rel="noopener noreferrer">
+                      <img src={it.image_url} alt={it.item_name}
+                        className="size-11 rounded-lg border object-cover transition hover:brightness-90" />
+                    </a>
+                  ) : (
+                    <div className="flex size-11 items-center justify-center rounded-lg border border-dashed">
+                      <ImageOff className="size-4 text-muted-foreground/50" />
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="font-mono text-xs">{it.item_code || '--'}</TableCell>
                 <TableCell className="min-w-[160px]">{it.item_name}</TableCell>
                 <TableCell className="num text-right">{num(it.quantity, 3)}</TableCell>
@@ -119,6 +133,11 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
                 <TableCell className="num text-right">{vnd(it.unit_price)}</TableCell>
                 <TableCell className="num text-right font-medium">{vnd(it.line_amount)}</TableCell>
                 <TableCell className="num text-right text-muted-foreground">{it.vat_rate}%</TableCell>
+                <TableCell className="whitespace-nowrap text-xs">
+                  {it.delivery_date
+                    ? dmy(it.delivery_date)
+                    : <span className="text-muted-foreground">theo đơn</span>}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -153,6 +172,13 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
             )}
             {!order.payments?.length && (
               <p className="pt-1 text-xs text-muted-foreground">Chưa phát sinh khoản thu nào.</p>
+            )}
+            {Number(order.deposit_expected) > 0 && !order.deposit_confirmed && (
+              <p className="flex gap-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
+                <HandCoins className="size-4 shrink-0" />
+                Kinh doanh khai khách đã cọc <b className="num">{vnd(order.deposit_expected)} đ</b> —
+                <b> chờ Kế toán xác nhận</b>, chưa vào sổ.
+              </p>
             )}
           </div>
         </div>

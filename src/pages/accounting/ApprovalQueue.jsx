@@ -6,11 +6,14 @@ import OrderDetailDialog from '@/components/common/OrderDetailDialog'
 import EmptyState from '@/components/common/EmptyState'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Select } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { vnd, dmy, dmyhm } from '@/lib/format'
-import { Check, X, Eye, Paperclip, CheckCircle2, Loader2 } from 'lucide-react'
+import { vnd, dmy, dmyhm, loiTiengViet } from '@/lib/format'
+import { Check, X, Eye, Paperclip, CheckCircle2, Loader2, HandCoins } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function ApprovalQueue() {
@@ -19,6 +22,24 @@ export default function ApprovalQueue() {
   const [rejectFor, setRejectFor] = useState(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(null)
+  const [coc, setCoc] = useState(null)          // don dang xac nhan tien coc
+  const [soTienCoc, setSoTienCoc] = useState('')
+  const [cocMethod, setCocMethod] = useState('Chuyển khoản')
+  const [cocRef, setCocRef] = useState('')
+
+  /** Ke toan xac nhan da nhan tien coc -> tao but toan dat coc */
+  const xacNhanCoc = async () => {
+    const tien = Number(String(soTienCoc).replace(/[^\d]/g, ''))
+    if (!tien) return toast.error('Nhập số tiền cọc đã nhận.')
+    setBusy(coc.id)
+    const { error } = await supabase.rpc('xac_nhan_tien_coc', {
+      p_order_id: coc.id, p_amount: tien, p_method: cocMethod, p_ref: cocRef || null
+    })
+    setBusy(null)
+    if (error) return toast.error(loiTiengViet(error))
+    toast.success(`Đã ghi nhận cọc ${tien.toLocaleString('vi-VN')} đ vào sổ thu tiền`)
+    setCoc(null); setSoTienCoc(''); setCocRef(''); reload()
+  }
 
   const approve = async (o) => {
     setBusy(o.id)
@@ -84,6 +105,25 @@ export default function ApprovalQueue() {
                       </span>
                     </div>
 
+                    {Number(o.deposit_expected) > 0 && !o.deposit_confirmed && (
+                      <div className="mb-3 space-y-2 rounded-lg border border-sky-200 bg-sky-50 p-2.5">
+                        <p className="flex items-center gap-2 text-xs text-sky-900">
+                          <HandCoins className="size-4 shrink-0" />
+                          Kinh doanh khai khách đã cọc <b className="num">{vnd(o.deposit_expected)} đ</b>
+                          {o.deposit_note ? ` · ${o.deposit_note}` : ''}
+                        </p>
+                        <Button size="sm" variant="outline" className="w-full"
+                          onClick={() => { setCoc(o); setSoTienCoc(String(o.deposit_expected)); setCocRef('') }}>
+                          <Check className="size-4" /> Xác nhận đã nhận tiền cọc
+                        </Button>
+                      </div>
+                    )}
+                    {o.deposit_confirmed && (
+                      <p className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800">
+                        <CheckCircle2 className="size-4 shrink-0" /> Đã xác nhận tiền cọc, đã vào sổ thu tiền
+                      </p>
+                    )}
+
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => setSel(o)}>
                         <Eye className="size-4" /> Xem chi tiết
@@ -116,6 +156,62 @@ export default function ApprovalQueue() {
           </div>
         )}
       />
+
+      {/* ----- Xac nhan tien coc ----- */}
+      <Dialog open={!!coc} onOpenChange={v => !v && setCoc(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HandCoins className="size-5" /> Xác nhận tiền cọc · #{coc?.order_code}
+            </DialogTitle>
+          </DialogHeader>
+
+          {coc && (
+            <div className="space-y-1 rounded-xl border bg-muted/40 p-3 text-sm">
+              <div className="flex justify-between"><span>Khách hàng</span><b className="truncate">{coc.customer_name}</b></div>
+              <div className="flex justify-between"><span>Giá trị đơn</span><b className="num">{vnd(coc.total_amount)} đ</b></div>
+              <div className="flex justify-between"><span>Kinh doanh khai</span>
+                <b className="num text-sky-700">{vnd(coc.deposit_expected)} đ</b></div>
+              {coc.deposit_note && (
+                <div className="flex justify-between"><span>Hình thức</span><b>{coc.deposit_note}</b></div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label>Số tiền thực nhận *</Label>
+            <Input inputMode="decimal" value={soTienCoc} onChange={e => setSoTienCoc(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              Sửa lại nếu số thực nhận khác con số Kinh doanh khai.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Hình thức</Label>
+              <Select value={cocMethod} onChange={e => setCocMethod(e.target.value)}>
+                {['Chuyển khoản', 'Tiền mặt', 'Bù trừ công nợ', 'Séc'].map(m => <option key={m}>{m}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Số chứng từ</Label>
+              <Input value={cocRef} onChange={e => setCocRef(e.target.value)} placeholder="UNC..." />
+            </div>
+          </div>
+
+          <p className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground">
+            Xác nhận xong hệ thống tạo một bút toán <b>Đặt cọc</b> trong Sổ thu tiền,
+            công nợ của đơn tự trừ đi.
+          </p>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCoc(null)}>Để sau</Button>
+            <Button variant="success" onClick={xacNhanCoc} disabled={busy === coc?.id}>
+              {busy === coc?.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              Ghi vào sổ thu tiền
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!rejectFor} onOpenChange={v => !v && setRejectFor(null)}>
         <DialogContent>

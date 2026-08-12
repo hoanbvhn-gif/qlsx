@@ -80,6 +80,12 @@ export default function OrderReviewDialog({
           <R k="Tiền thuế GTGT" v={vnd(totals.vat)} />
           <div className="my-1 h-px bg-border" />
           <R k="Tổng thanh toán" v={vnd(totals.total) + ' đ'} bold />
+          {Number(head.deposit_expected) > 0 && (
+            <>
+              <R k="Khách đặt cọc" v={vnd(head.deposit_expected)} />
+              <R k="Còn lại phải thu" v={vnd(Math.max(0, totals.total - Number(head.deposit_expected)))} bold />
+            </>
+          )}
         </div>
 
         {/* ---- Thiet ke ---- */}
