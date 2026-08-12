@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useOrders } from '@/hooks/useOrders'
 import PageHeader from '@/components/common/PageHeader'
 import OrderDetailDialog from '@/components/common/OrderDetailDialog'
+import EntitySwitch from '@/components/common/EntitySwitch'
 import EmptyState from '@/components/common/EmptyState'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -74,7 +75,10 @@ export default function ApprovalQueue() {
                   <CardContent className="p-5">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-mono font-semibold">#{o.order_code}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-mono font-semibold">#{o.order_code}</p>
+                          <EntitySwitch order={o} canEdit onChanged={reload} />
+                        </div>
                         <p className="truncate text-sm font-medium">{o.customer_name}</p>
                         <p className="text-xs text-muted-foreground">
                           MST {o.customer_tax_code || '--'} · {o.customer_phone || '--'}

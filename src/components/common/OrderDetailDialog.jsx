@@ -49,6 +49,7 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
         </DialogHeader>
 
         <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm sm:grid-cols-2">
+          <Field k="Đơn vị xuất hóa đơn" v={order.entity?.short_name ?? '--'} />
           <Field k="Khách hàng" v={order.customer_name} />
           <Field k="Mã số thuế" v={order.customer_tax_code} />
           <Field k="Địa chỉ" v={order.customer_address} />

@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { useOrders } from '@/hooks/useOrders'
+import { useEntities } from '@/hooks/useEntities'
 import PageHeader from '@/components/common/PageHeader'
 import StatCard from '@/components/common/StatCard'
 import EmptyState from '@/components/common/EmptyState'
 import OrderDetailDialog from '@/components/common/OrderDetailDialog'
+import EntitySwitch from '@/components/common/EntitySwitch'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
@@ -29,11 +31,14 @@ import { toast } from 'sonner'
 export default function AllOrders() {
   const { profile } = useAuth()
   const isBoss = profile?.role === 'management'
+  const canEdit = ['management', 'accounting'].includes(profile?.role)
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [st, setSt] = useState('')
+  const [dv, setDv] = useState('')
+  const { entities } = useEntities()
   const [del, setDel] = useState(null)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -54,9 +59,10 @@ export default function AllOrders() {
     const key = noAccent(q)
     return rows.filter(r =>
       (!st || r.status === st) &&
+      (!dv || r.entity_id === dv) &&
       (!key || noAccent(`${r.order_code} ${r.customer_name} ${r.sales_name ?? ''} ${r.customer_phone ?? ''} ${r.customer_address ?? ''}`).includes(key))
     )
-  }, [rows, q, st])
+  }, [rows, q, st, dv])
 
   const stat = useMemo(() => ({
     count: list.length,
@@ -79,9 +85,9 @@ export default function AllOrders() {
   }
 
   const exportCsv = () => {
-    const head = ['Mã đơn', 'Ngày lập', 'Khách hàng', 'MST', 'Điện thoại', 'Địa chỉ', 'NVKD',
+    const head = ['Mã đơn', 'Ngày lập', 'Đơn vị xuất HĐ', 'Khách hàng', 'MST', 'Điện thoại', 'Địa chỉ', 'NVKD',
       'Trạng thái', 'Tiền hàng', 'VAT', 'Tổng tiền', 'Đã thu', 'Còn nợ', 'Số dòng hàng', 'Số file TK']
-    const body = list.map(r => [r.order_code, dmy(r.order_date), r.customer_name,
+    const body = list.map(r => [r.order_code, dmy(r.order_date), r.entity_name ?? '', r.customer_name,
       r.customer_tax_code || r.tax_code || '', r.customer_phone ?? '', r.customer_address ?? '',
       r.sales_name ?? '', STATUS[r.status]?.label ?? r.status, r.subtotal, r.vat_amount,
       r.total_amount, r.paid_amount, r.debt_amount, r.so_dong_hang, r.so_file_thiet_ke])
@@ -119,9 +125,13 @@ export default function AllOrders() {
             <Input className="pl-9" placeholder="Tìm mã đơn / khách hàng / NVKD / số điện thoại / địa chỉ..."
               value={q} onChange={e => setQ(e.target.value)} />
           </div>
-          <Select className="sm:w-56" value={st} onChange={e => setSt(e.target.value)}>
+          <Select className="sm:w-52" value={st} onChange={e => setSt(e.target.value)}>
             <option value="">Tất cả trạng thái</option>
             {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </Select>
+          <Select className="sm:w-48" value={dv} onChange={e => setDv(e.target.value)}>
+            <option value="">Cả hai đơn vị</option>
+            {entities.map(e => <option key={e.id} value={e.id}>{e.short_name}</option>)}
           </Select>
         </CardContent>
       </Card>
@@ -136,6 +146,7 @@ export default function AllOrders() {
                 <TableHead>Mã đơn</TableHead>
                 <TableHead>Khách hàng</TableHead>
                 <TableHead>NVKD</TableHead>
+                <TableHead>Xuất HĐ</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead className="text-right">Tổng tiền</TableHead>
                 <TableHead className="min-w-[170px]">Thanh toán</TableHead>
@@ -172,6 +183,9 @@ export default function AllOrders() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{r.sales_name || '--'}</TableCell>
+                    <TableCell>
+                      <EntitySwitch order={r} canEdit={canEdit} onChanged={load} />
+                    </TableCell>
                     <TableCell><StatusBadge status={r.status} /></TableCell>
                     <TableCell className="num text-right font-medium">{vnd(r.total_amount)}</TableCell>
                     <TableCell>

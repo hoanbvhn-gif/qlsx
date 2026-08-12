@@ -14,6 +14,7 @@ import {
 import { donFileDaTatToan, docDungLuong, mb } from '@/lib/cleanup'
 import { xuatSaoLuu } from '@/lib/backup'
 import { cn } from '@/lib/utils'
+import EntitySettings from './EntitySettings'
 import { toast } from 'sonner'
 
 const isHttp = (s) => /^https?:/i.test((s ?? '').trim())
@@ -161,6 +162,8 @@ export default function Settings() {
           </CardContent>
         </Card>
       </div>
+
+      <EntitySettings />
 
       {/* ---------- DUNG LUONG ---------- */}
       <div className="mt-5 grid gap-5 lg:grid-cols-2">

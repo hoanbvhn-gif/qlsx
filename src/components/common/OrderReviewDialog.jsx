@@ -33,6 +33,7 @@ export default function OrderReviewDialog({
         {/* ---- Khach hang ---- */}
         <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm sm:grid-cols-2">
           {orderCode && <F k="Mã đơn" v={orderCode} mono />}
+          <F k="Xuất hóa đơn" v={head.entity_name ? `${head.entity_name}${head.entity_tax ? ` · MST ${head.entity_tax}` : ''}` : '--'} strong />
           <F k="Ngày lập đơn" v={head.order_date?.split('-').reverse().join('/')} />
           <F k="Khách hàng" v={head.customer_name} strong />
           <F k="Mã khách hàng" v={head.customer_code} />

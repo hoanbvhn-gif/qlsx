@@ -15,10 +15,12 @@ import ProductSearchBox from '@/components/common/ProductSearchBox'
 import ItemPicker from '@/components/common/ItemPicker'
 import AnhMau from '@/components/common/AnhMau'
 import CustomerPicker from '@/components/common/CustomerPicker'
+import EntityPicker from '@/components/common/EntityPicker'
 import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
+import { useEntities } from '@/hooks/useEntities'
 import { vnd, parseNum, loiTiengViet } from '@/lib/format'
-import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus, RefreshCw, HandCoins } from 'lucide-react'
+import { Plus, Trash2, Save, Send, Loader2, Info, PackagePlus, RefreshCw, HandCoins, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 
 const UNITS = ['Cái', 'Bộ', 'Chiếc', 'Kg', 'Tấn', 'Mét', 'M2', 'Thùng', 'Hộp', 'Tờ']
@@ -49,6 +51,20 @@ export default function NewOrder() {
   const [review, setReview] = useState(false)
 
   const { items: catalogItems } = useItems({ onlyApproved: true })
+  const { entities } = useEntities()
+
+  // Don vi xuat hoa don — mac dinh lay don vi duoc danh dau mac dinh
+  const [entity, setEntity] = useState(null)
+  useEffect(() => {
+    if (!entity && entities.length) setEntity(entities.find(e => e.is_default) ?? entities[0])
+  }, [entities, entity])
+
+  /** Doi don vi -> ap thue suat mac dinh cho cac dong CHUA sua thue */
+  const doiDonVi = (e) => {
+    setEntity(e)
+    setLines(ls => ls.map(l => ({ ...l, vat_rate: e.default_vat_rate })))
+    toast.success(`Chuyển sang xuất hóa đơn ${e.short_name} · VAT ${e.default_vat_rate}%`)
+  }
 
   const [maGoiY, setMaGoiY] = useState('')
 
@@ -63,6 +79,8 @@ export default function NewOrder() {
   }, [capMaKhachMoi])
 
   /* ---------- Dong hang hoa ---------- */
+  const vatMacDinh = () => (entity ? Number(entity.default_vat_rate) : 8)
+
   const addFromCatalog = (it) => {
     setLines(l => {
       // da co trong don thi cong don so luong thay vi them dong trung
@@ -75,14 +93,14 @@ export default function NewOrder() {
       }
       toast.success(`Đã thêm ${it.item_code}`)
       return [...l, {
-        ...blankLine(),
+        ...blankLine(), vat_rate: vatMacDinh(),
         item_code: it.item_code, item_name: it.item_name,
         unit: it.unit || 'Cái',
         unit_price: it.list_price > 0 ? String(it.list_price) : ''
       }]
     })
   }
-  const addBlank = () => setLines(l => [...l, blankLine()])
+  const addBlank = () => setLines(l => [...l, { ...blankLine(), vat_rate: vatMacDinh() }])
   const delLine = (key) => setLines(l => l.filter(x => x.key !== key))
   const setLine = (key, patch) => setLines(l => l.map(x => (x.key === key ? { ...x, ...patch } : x)))
 
@@ -168,6 +186,7 @@ export default function NewOrder() {
         customer_address: head.customer_address,
         customer_phone: head.customer_phone,
         sales_id: profile.id,
+        entity_id: entity?.id ?? null,
         status: forSubmit ? 'pending_accounting' : 'draft',
         design_file_path: primaryRef,
         design_file_name: primary ? (primary.file_name.trim() || 'Thiết kế') : null,
@@ -234,6 +253,22 @@ export default function NewOrder() {
         desc="Mã đơn tự sinh khi bấm Lưu — số thứ tự liên tục 0001, 0002, 0003..." />
 
       <div className="space-y-5">
+        {/* ============ 0. DON VI XUAT HOA DON ============ */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="size-4" /> Đơn vị xuất hóa đơn
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <EntityPicker entities={entities} value={entity?.id} onChange={doiDonVi} />
+            <p className="text-xs text-muted-foreground">
+              Chọn đúng ngay từ đầu để sổ sách hai đơn vị không lẫn nhau.
+              Kế toán và Ban Giám đốc vẫn đổi được sau nếu cần.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* ============ 1. KHACH HANG ============ */}
         <Card>
           <CardHeader><CardTitle>1. Thông tin khách hàng</CardTitle></CardHeader>
@@ -544,7 +579,7 @@ export default function NewOrder() {
 
       <OrderReviewDialog
         open={review} onOpenChange={setReview}
-        head={head}
+        head={{ ...head, entity_name: entity?.short_name, entity_tax: entity?.tax_code }}
         lines={lines.map(l => ({ ...l, quantity: parseNum(l.quantity), unit_price: parseNum(l.unit_price) }))}
         files={validFiles}
         totals={totals}

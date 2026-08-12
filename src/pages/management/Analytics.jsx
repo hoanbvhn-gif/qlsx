@@ -12,12 +12,13 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge'
 import EmptyState from '@/components/common/EmptyState'
 import { cn } from '@/lib/utils'
+import { useEntities, entityTone } from '@/hooks/useEntities'
 import { vnd, dmy, STATUS, DEPT_OF_STATUS } from '@/lib/format'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts'
-import { TrendingUp, Wallet, AlertTriangle, Receipt, Factory, Clock, CheckCircle2, Users } from 'lucide-react'
+import { TrendingUp, Wallet, AlertTriangle, Receipt, Factory, Clock, CheckCircle2, Users, Building2, Store } from 'lucide-react'
 
 const COLORS = ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#14b8a6', '#8b5cf6', '#94a3b8']
 const fmtAxis = v => (v >= 1e9 ? (v / 1e9).toFixed(1) + ' tỷ' : (v / 1e6).toFixed(0) + ' tr')
@@ -30,6 +31,9 @@ export default function Analytics() {
   const [debts, setDebts] = useState([])
   const [wip, setWip] = useState([])
   const [perf, setPerf] = useState([])
+  const [theoDV, setTheoDV] = useState([])      // tong hop theo don vi phat hanh
+  const [locDV, setLocDV] = useState('')        // '' = ca hai don vi
+  const { entities } = useEntities()
 
   useEffect(() => {
     supabase.from('v_cong_no_thuc').select('*').order('so_ngay_no', { ascending: false })
@@ -38,13 +42,17 @@ export default function Analytics() {
       .then(({ data }) => setWip(data ?? []))
     supabase.from('v_kd_hieu_suat').select('*').order('doanh_thu', { ascending: false })
       .then(({ data }) => setPerf(data ?? []))
+    supabase.from('v_theo_don_vi').select('*')
+      .then(({ data }) => setTheoDV(data ?? []))
   }, [])
 
   const tongCongNo = useMemo(() => debts.reduce((a, r) => a + Number(r.debt_amount), 0), [debts])
   const tongTon = useMemo(() => wip.reduce((a, r) => a + Number(r.total_amount), 0), [wip])
   const treHan = useMemo(() => wip.filter(r => r.so_ngay_tre_han > 0).length, [wip])
 
-  const live = useMemo(() => orders.filter(o => !['draft', 'cancelled'].includes(o.status)), [orders])
+  const live = useMemo(() => orders.filter(o =>
+    !['draft', 'cancelled'].includes(o.status) && (!locDV || o.entity_id === locDV)
+  ), [orders, locDV])
   const years = useMemo(() =>
     [...new Set(orders.map(o => new Date(o.order_date).getFullYear()))].sort((a, b) => b - a), [orders])
   const inYear = useMemo(() => live.filter(o => new Date(o.order_date).getFullYear() === Number(year)), [live, year])
@@ -109,9 +117,15 @@ export default function Analytics() {
         title="Báo cáo tổng hợp"
         desc="Doanh số, công nợ và tình trạng luân chuyển đơn hàng"
         action={
-          <Select className="w-36" value={year} onChange={e => setYear(e.target.value)}>
-            {(years.length ? years : [new Date().getFullYear()]).map(y => <option key={y} value={y}>Năm {y}</option>)}
-          </Select>
+          <div className="flex flex-wrap gap-2">
+            <Select className="w-48" value={locDV} onChange={e => setLocDV(e.target.value)}>
+              <option value="">Cả hai đơn vị</option>
+              {entities.map(e => <option key={e.id} value={e.id}>{e.short_name}</option>)}
+            </Select>
+            <Select className="w-36" value={year} onChange={e => setYear(e.target.value)}>
+              {(years.length ? years : [new Date().getFullYear()]).map(y => <option key={y} value={y}>Năm {y}</option>)}
+            </Select>
+          </div>
         }
       />
 
@@ -130,6 +144,7 @@ export default function Analytics() {
           <TabsTrigger value="thang">Theo tháng</TabsTrigger>
           <TabsTrigger value="quy">Theo quý</TabsTrigger>
           <TabsTrigger value="nvkd">Biểu đồ NVKD</TabsTrigger>
+          <TabsTrigger value="donvi">So sánh 2 đơn vị</TabsTrigger>
           <TabsTrigger value="hieusuat">Doanh thu &amp; công nợ NVKD</TabsTrigger>
           <TabsTrigger value="congno">Chi tiết công nợ</TabsTrigger>
           <TabsTrigger value="tonsx">Tồn sản xuất</TabsTrigger>
@@ -207,6 +222,90 @@ export default function Analytics() {
                     </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ---------- SO SANH HAI DON VI PHAT HANH ---------- */}
+        <TabsContent value="donvi">
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              {theoDV.map(d => {
+                const Icon = d.code === 'HKD' ? Store : Building2
+                return (
+                  <Card key={d.entity_id} className={cn('border-2',
+                    d.code === 'HKD' ? 'border-orange-200' : 'border-indigo-200')}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2">
+                        <Icon className={cn('size-5',
+                          d.code === 'HKD' ? 'text-orange-600' : 'text-indigo-600')} />
+                        {d.short_name}
+                      </CardTitle>
+                      <CardDescription>
+                        {d.tax_code ? `MST ${d.tax_code}` : 'Chưa khai mã số thuế'} · {d.so_don} đơn hàng
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-1.5 text-sm">
+                      <Dong k="Tiền hàng" v={vnd(d.tien_hang)} />
+                      <Dong k="Tiền thuế GTGT" v={vnd(d.tien_thue)} />
+                      <div className="my-1 h-px bg-border" />
+                      <Dong k="Doanh thu" v={vnd(d.doanh_thu)} bold />
+                      <Dong k="Đã thu" v={vnd(d.da_thu)} tone="text-emerald-600" />
+                      <Dong k="Công nợ (đã giao)" v={vnd(d.cong_no)} tone="text-rose-600" bold />
+                      <Dong k="Đang chạy" v={vnd(d.dang_chay)} tone="text-indigo-600" />
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Đối chiếu hai đơn vị</CardTitle>
+                <CardDescription>
+                  Số liệu tách rời theo pháp nhân phát hành hóa đơn — dùng khi lập tờ khai thuế
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Đơn vị</TableHead>
+                      <TableHead className="text-right">Số đơn</TableHead>
+                      <TableHead className="text-right">Tiền hàng</TableHead>
+                      <TableHead className="text-right">Thuế GTGT</TableHead>
+                      <TableHead className="text-right">Doanh thu</TableHead>
+                      <TableHead className="text-right">Đã thu</TableHead>
+                      <TableHead className="text-right">Công nợ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {theoDV.map(d => (
+                      <TableRow key={d.entity_id}>
+                        <TableCell>
+                          <Badge className={entityTone(d.code)}>{d.short_name}</Badge>
+                          {d.tax_code && <span className="block text-xs text-muted-foreground">MST {d.tax_code}</span>}
+                        </TableCell>
+                        <TableCell className="num text-right">{d.so_don}</TableCell>
+                        <TableCell className="num text-right">{vnd(d.tien_hang)}</TableCell>
+                        <TableCell className="num text-right">{vnd(d.tien_thue)}</TableCell>
+                        <TableCell className="num text-right font-medium">{vnd(d.doanh_thu)}</TableCell>
+                        <TableCell className="num text-right text-emerald-600">{vnd(d.da_thu)}</TableCell>
+                        <TableCell className="num text-right font-semibold text-rose-600">{vnd(d.cong_no)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell>Tổng cộng</TableCell>
+                      <TableCell className="num text-right">{theoDV.reduce((a, d) => a + Number(d.so_don), 0)}</TableCell>
+                      <TableCell className="num text-right">{vnd(theoDV.reduce((a, d) => a + Number(d.tien_hang), 0))}</TableCell>
+                      <TableCell className="num text-right">{vnd(theoDV.reduce((a, d) => a + Number(d.tien_thue), 0))}</TableCell>
+                      <TableCell className="num text-right">{vnd(theoDV.reduce((a, d) => a + Number(d.doanh_thu), 0))}</TableCell>
+                      <TableCell className="num text-right text-emerald-700">{vnd(theoDV.reduce((a, d) => a + Number(d.da_thu), 0))}</TableCell>
+                      <TableCell className="num text-right text-rose-600">{vnd(theoDV.reduce((a, d) => a + Number(d.cong_no), 0))}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </div>
@@ -439,3 +538,10 @@ export default function Analytics() {
     </>
   )
 }
+
+const Dong = ({ k, v, bold, tone = '' }) => (
+  <div className={cn('flex justify-between', bold && 'font-semibold')}>
+    <span className={bold ? '' : 'text-muted-foreground'}>{k}</span>
+    <span className={cn('num', tone)}>{v}</span>
+  </div>
+)
