@@ -14,6 +14,7 @@ import OrderReviewDialog from '@/components/common/OrderReviewDialog'
 import ProductSearchBox from '@/components/common/ProductSearchBox'
 import ItemPicker from '@/components/common/ItemPicker'
 import AnhMau from '@/components/common/AnhMau'
+import CustomerPicker from '@/components/common/CustomerPicker'
 import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
 import { vnd, parseNum, loiTiengViet } from '@/lib/format'
@@ -97,18 +98,6 @@ export default function NewOrder() {
     }
     return { sub, vat, total: sub + vat }
   }, [lines])
-
-  const pickCustomer = (id) => {
-    const c = customers.find(x => x.id === id)
-    if (!c) return setHead(h => ({
-      ...h, customer_id: '', customer_code: maGoiY,
-      customer_name: '', customer_tax_code: '', customer_address: '', customer_phone: ''
-    }))
-    setHead(h => ({
-      ...h, customer_id: c.id, customer_code: c.customer_code, customer_name: c.name,
-      customer_tax_code: c.tax_code ?? '', customer_address: c.address ?? '', customer_phone: c.phone ?? ''
-    }))
-  }
 
   const validate = (forSubmit) => {
     if (!head.customer_name.trim()) return 'Chưa nhập tên khách hàng.'
@@ -249,14 +238,27 @@ export default function NewOrder() {
         <Card>
           <CardHeader><CardTitle>1. Thông tin khách hàng</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
-              <Label>Chọn khách hàng có sẵn</Label>
-              <Select value={head.customer_id} onChange={e => pickCustomer(e.target.value)}>
-                <option value="">-- Khách hàng mới (nhập tay bên dưới) --</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.customer_code} · {c.name}</option>
-                ))}
-              </Select>
+            <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+              <Label>Tên khách hàng *</Label>
+              <CustomerPicker
+                customers={customers}
+                value={head.customer_name}
+                daChon={!!head.customer_id}
+                onPick={c => setHead(h => ({
+                  ...h, customer_id: c.id, customer_code: c.customer_code, customer_name: c.name,
+                  customer_tax_code: c.tax_code ?? '', customer_address: c.address ?? '',
+                  customer_phone: c.phone ?? ''
+                }))}
+                onFreeText={v => setHead(h => ({ ...h, customer_id: '', customer_name: v }))}
+                onClear={() => setHead(h => ({
+                  ...h, customer_id: '', customer_code: maGoiY, customer_name: '',
+                  customer_tax_code: '', customer_address: '', customer_phone: ''
+                }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Gõ tên để tìm khách đã có. Không có trong danh sách thì cứ gõ tên mới,
+                hệ thống tự tạo khách hàng.
+              </p>
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -271,16 +273,6 @@ export default function NewOrder() {
               <Input value={head.customer_code} placeholder={maGoiY || 'KH001'}
                 disabled={!!head.customer_id}
                 onChange={e => setHead(h => ({ ...h, customer_code: e.target.value.toUpperCase() }))} />
-              {!head.customer_id && (
-                <p className="text-xs text-muted-foreground">
-                  Hệ thống đã cấp sẵn mã tiếp theo. Để trống cũng được.
-                </p>
-              )}
-            </div>
-            <div className="space-y-1.5 sm:col-span-1 lg:col-span-2">
-              <Label>Tên khách hàng *</Label>
-              <Input value={head.customer_name} placeholder="Công ty TNHH ..."
-                onChange={e => setHead(h => ({ ...h, customer_name: e.target.value }))} />
             </div>
             <F label="Mã số thuế" value={head.customer_tax_code}
                onChange={v => setHead(h => ({ ...h, customer_tax_code: v }))} placeholder="0101234567" />
