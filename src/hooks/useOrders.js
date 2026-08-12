@@ -4,16 +4,16 @@ import { supabase } from '@/lib/supabase'
 const ORDER_SELECT = `
   id, order_code, order_date, status,
   customer_id, customer_name, customer_tax_code, customer_address, customer_phone,
-  sales_id, subtotal, vat_amount, total_amount, paid_amount, debt_amount, is_settled,
+  sales_id, subtotal, vat_amount, total_amount, paid_amount, pending_amount, debt_amount, is_settled,
   design_file_path, design_file_name, note, reject_reason,
-  deposit_expected, deposit_note, deposit_confirmed, cancel_reason, entity_id,
+  deposit_expected, deposit_note, deposit_confirmed, deposit_proof_path, cancel_reason, entity_id,
   entity:entity_id ( id, code, short_name, tax_code, default_vat_rate ),
   submitted_at, approved_at, production_started_at, estimated_delivery_date,
   completed_at, delivered_at, created_at,
   sales:sales_id ( full_name, employee_code ),
   order_items ( id, line_no, item_code, item_name, spec, quantity, unit, unit_price, vat_rate, line_amount, line_vat, line_total, delivery_date, image_url, file_url, file_name ),
   order_files ( id, line_no, source, file_name, file_url, storage_path, file_size, note ),
-  payments ( id, payment_date, payment_type, amount, method, reference_no, transfer_note, note, reconciled )
+  payments ( id, payment_date, payment_type, amount, method, reference_no, transfer_note, note, reconciled, proof_path, confirmed, bank_txn_id, created_by )
 `
 
 export function useOrders({ statuses, salesId, autoRefresh = true } = {}) {

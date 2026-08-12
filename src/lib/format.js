@@ -113,5 +113,22 @@ export function loiTiengViet(error) {
   if (/Failed to fetch|NetworkError/i.test(m))
     return 'Mất kết nối tới máy chủ. Kiểm tra mạng rồi thử lại.'
 
+  if (/chi duoc ghi nhan tien ve cho don hang cua minh/i.test(m))
+    return 'Bạn chỉ ghi nhận tiền về được cho đơn hàng của chính mình.'
+  if (/chua duoc ke toan duyet/i.test(m))
+    return 'Đơn chưa được Kế toán duyệt (hoặc đã hủy) nên chưa ghi nhận tiền được.'
+  if (/chon khoan tien ve tu bang ke/i.test(m))
+    return 'Chọn khoản tiền về từ bảng kê ngân hàng trước khi lưu.'
+  if (/chi con .* chua phan bo/i.test(m))
+    return 'Khoản tiền này vừa được dùng cho đơn khác nên không còn đủ. Bấm Tải lại rồi chọn số nhỏ hơn.'
+  if (/da duoc xac nhan roi/i.test(m))
+    return 'Bút toán đã được xác nhận rồi — tải lại trang để thấy trạng thái mới.'
+  if (/duoc xac nhan but toan|duoc tra lai but toan/i.test(m))
+    return 'Chỉ Kế toán hoặc Ban Giám đốc được xác nhận bút toán.'
+  if (/da xac nhan roi, muon sua/i.test(m))
+    return 'Bút toán đã hạch toán rồi. Muốn sửa thì lập yêu cầu điều chỉnh để Giám đốc duyệt.'
+  if (/chi ghi duoc tien khach chuyen ve/i.test(m))
+    return 'Kinh doanh chỉ ghi được tiền khách chuyển về. Khoản hoàn trả do Kế toán ghi.'
+
   return m
 }

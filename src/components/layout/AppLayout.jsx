@@ -14,7 +14,7 @@ import {
 import {
   LayoutDashboard, FilePlus2, ListOrdered, CheckSquare, Wallet, Users,
   KanbanSquare, BarChart3, ShieldCheck, Menu, X, LogOut, Factory, Building2,
-  Settings as SettingsIcon, Package, Receipt, FileWarning, ScrollText
+  Settings as SettingsIcon, Package, Receipt, FileWarning, ScrollText, Landmark
 } from 'lucide-react'
 
 const NAV = {
@@ -23,6 +23,7 @@ const NAV = {
     { to: '/kinhdoanh/don-moi',    icon: FilePlus2,       label: 'Lập đơn hàng' },
     { to: '/kinhdoanh/don-hang',   icon: ListOrdered,     label: 'Đơn hàng của tôi' },
     { to: '/kinhdoanh/tien-do',    icon: KanbanSquare,    label: 'Tiến độ đơn hàng' },
+    { to: '/ketoan/bang-ke',       icon: Landmark,        label: 'Tiền về ngân hàng' },
     { to: '/ma-hang',              icon: Package,         label: 'Danh mục mã hàng' }
   ],
   accounting: [
@@ -30,6 +31,7 @@ const NAV = {
     { to: '/ketoan/duyet-don',     icon: CheckSquare,     label: 'Duyệt đơn hàng' },
     { to: '/ketoan/cong-no',       icon: Wallet,          label: 'Thu tiền & công nợ' },
     { to: '/ketoan/so-thu-tien',   icon: Receipt,         label: 'Sổ thu tiền' },
+    { to: '/ketoan/bang-ke',       icon: Landmark,        label: 'Bảng kê ngân hàng' },
     { to: '/ketoan/dieu-chinh',    icon: FileWarning,     label: 'Yêu cầu điều chỉnh' },
     { to: '/ketoan/nhat-ky',       icon: ScrollText,      label: 'Nhật ký hệ thống' },
     { to: '/ketoan/nhan-su',       icon: Users,           label: 'Tạo tài khoản NV' },
@@ -46,6 +48,7 @@ const NAV = {
     { to: '/gd/cong-no',           icon: Wallet,          label: 'Công nợ khách hàng' },
     { to: '/ketoan/cong-no',       icon: Wallet,          label: 'Thu tiền & ghi cọc' },
     { to: '/ketoan/so-thu-tien',   icon: Receipt,         label: 'Sổ thu tiền' },
+    { to: '/ketoan/bang-ke',       icon: Landmark,        label: 'Bảng kê ngân hàng' },
     { to: '/ketoan/dieu-chinh',    icon: FileWarning,     label: 'Duyệt điều chỉnh thu tiền' },
     { to: '/ketoan/nhat-ky',       icon: ScrollText,      label: 'Nhật ký hệ thống' },
     { to: '/gd/phan-quyen',        icon: ShieldCheck,     label: 'Phân quyền nhân sự' },

@@ -16,6 +16,7 @@ import ItemPicker from '@/components/common/ItemPicker'
 import AnhMau from '@/components/common/AnhMau'
 import CustomerPicker from '@/components/common/CustomerPicker'
 import EntityPicker from '@/components/common/EntityPicker'
+import ChungTu from '@/components/common/ChungTu'
 import DesignFilesEditor, { blankFile, isValidFile } from '@/components/common/DesignFilesEditor'
 import { useItems } from '@/hooks/useItems'
 import { useEntities } from '@/hooks/useEntities'
@@ -42,7 +43,7 @@ export default function NewOrder() {
     customer_id: '', customer_code: '', customer_name: '',
     customer_tax_code: '', customer_address: '', customer_phone: '',
     order_date: new Date().toISOString().slice(0, 10), note: '',
-    deposit_expected: '', deposit_note: ''
+    deposit_expected: '', deposit_note: '', deposit_proof_path: ''
   })
   const [lines, setLines] = useState([])
   const [files, setFiles] = useState([blankFile()])
@@ -193,6 +194,7 @@ export default function NewOrder() {
         design_uploaded_at: primary ? new Date().toISOString() : null,
         deposit_expected: parseNum(head.deposit_expected),
         deposit_note: head.deposit_note || null,
+        deposit_proof_path: head.deposit_proof_path || null,
         note: head.note
       }).select('id, order_code').single()
       if (eO) throw eO
@@ -534,6 +536,20 @@ export default function NewOrder() {
                 <Input placeholder="Hình thức — vd: chuyển khoản VCB, tiền mặt..."
                   value={head.deposit_note}
                   onChange={e => setHead(h => ({ ...h, deposit_note: e.target.value }))} />
+
+                <div className="flex items-center gap-3 rounded-lg border border-sky-200 bg-white p-2.5">
+                  <ChungTu value={head.deposit_proof_path}
+                    onChange={v => setHead(h => ({ ...h, deposit_proof_path: v }))} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium">Ảnh chuyển khoản</p>
+                    <p className="text-xs text-muted-foreground">
+                      {head.deposit_proof_path
+                        ? 'Đã đính — Kế toán sẽ mở ra đối chiếu sao kê'
+                        : 'Chụp màn hình chuyển khoản của khách rồi đính vào đây'}
+                    </p>
+                  </div>
+                </div>
+
                 <p className="text-xs text-sky-800">
                   Đây là <b>khai báo</b>. Kế toán kiểm tra tài khoản rồi xác nhận thì mới vào sổ thu tiền.
                 </p>

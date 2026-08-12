@@ -15,6 +15,7 @@ import Payments from '@/pages/accounting/Payments'
 import PaymentLedger from '@/pages/accounting/PaymentLedger'
 import AmendmentQueue from '@/pages/accounting/AmendmentQueue'
 import AuditLog from '@/pages/accounting/AuditLog'
+import BankImport from '@/pages/accounting/BankImport'
 import StaffManagement from '@/pages/accounting/StaffManagement'
 import KanbanBoard from '@/pages/production/KanbanBoard'
 import Analytics from '@/pages/management/Analytics'
@@ -60,6 +61,12 @@ export default function App() {
             <Route path="dieu-chinh" element={<AmendmentQueue />} />
             <Route path="nhat-ky" element={<AuditLog />} />
             <Route path="nhan-su" element={<StaffManagement />} />
+          </Route>
+
+          {/* ---------- TIEN VE NGAN HANG (Kinh doanh xem duoc, khong thay tien di) ---------- */}
+          <Route path="/ketoan/bang-ke" element={
+            <ProtectedRoute allow={['accounting', 'management', 'sales']}><AppLayout /></ProtectedRoute>}>
+            <Route index element={<BankImport />} />
           </Route>
 
           {/* ---------- SAN XUAT ---------- */}

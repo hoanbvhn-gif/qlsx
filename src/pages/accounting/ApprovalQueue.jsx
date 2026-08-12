@@ -4,6 +4,7 @@ import { useOrders } from '@/hooks/useOrders'
 import PageHeader from '@/components/common/PageHeader'
 import OrderDetailDialog from '@/components/common/OrderDetailDialog'
 import EntitySwitch from '@/components/common/EntitySwitch'
+import ChungTu from '@/components/common/ChungTu'
 import EmptyState from '@/components/common/EmptyState'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ export default function ApprovalQueue() {
   const [soTienCoc, setSoTienCoc] = useState('')
   const [cocMethod, setCocMethod] = useState('Chuyển khoản')
   const [cocRef, setCocRef] = useState('')
+  const [cocProof, setCocProof] = useState('')
 
   /** Ke toan xac nhan da nhan tien coc -> tao but toan dat coc */
   const xacNhanCoc = async () => {
@@ -34,7 +36,8 @@ export default function ApprovalQueue() {
     if (!tien) return toast.error('Nhập số tiền cọc đã nhận.')
     setBusy(coc.id)
     const { error } = await supabase.rpc('xac_nhan_tien_coc', {
-      p_order_id: coc.id, p_amount: tien, p_method: cocMethod, p_ref: cocRef || null
+      p_order_id: coc.id, p_amount: tien, p_method: cocMethod, p_ref: cocRef || null,
+      p_proof: cocProof || null
     })
     setBusy(null)
     if (error) return toast.error(loiTiengViet(error))
@@ -115,9 +118,12 @@ export default function ApprovalQueue() {
                           <HandCoins className="size-4 shrink-0" />
                           Kinh doanh khai khách đã cọc <b className="num">{vnd(o.deposit_expected)} đ</b>
                           {o.deposit_note ? ` · ${o.deposit_note}` : ''}
+                          {o.deposit_proof_path
+                            ? <b className="text-emerald-700"> · có ảnh chuyển khoản</b>
+                            : <b className="text-amber-800"> · chưa có ảnh</b>}
                         </p>
                         <Button size="sm" variant="outline" className="w-full"
-                          onClick={() => { setCoc(o); setSoTienCoc(String(o.deposit_expected)); setCocRef('') }}>
+                          onClick={() => { setCoc(o); setSoTienCoc(String(o.deposit_expected)); setCocRef(''); setCocProof(o.deposit_proof_path ?? '') }}>
                           <Check className="size-4" /> Xác nhận đã nhận tiền cọc
                         </Button>
                       </div>
@@ -199,6 +205,18 @@ export default function ApprovalQueue() {
             <div className="space-y-1.5">
               <Label>Số chứng từ</Label>
               <Input value={cocRef} onChange={e => setCocRef(e.target.value)} placeholder="UNC..." />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Chứng từ chuyển khoản</Label>
+            <div className="flex items-center gap-3 rounded-lg border p-2.5">
+              <ChungTu value={cocProof} onChange={setCocProof} />
+              <p className="text-xs text-muted-foreground">
+                {cocProof
+                  ? 'Ảnh Kinh doanh đính kèm — mở ra đối chiếu với sao kê trước khi xác nhận'
+                  : 'Kinh doanh chưa đính ảnh. Bạn có thể tự đính nếu đã nhận được chứng từ.'}
+              </p>
             </div>
           </div>
 

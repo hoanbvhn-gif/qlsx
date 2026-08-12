@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Badge, StatusBadge } from '@/components/ui/badge'
 import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS, payStatus, PAYMENT_TYPE_LABEL } from '@/lib/format'
-import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff, HandCoins } from 'lucide-react'
+import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff, HandCoins, Clock, CheckCircle2 } from 'lucide-react'
+import ChungTu from '@/components/common/ChungTu'
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
   const [busyId, setBusyId] = useState(null)
@@ -174,6 +175,13 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
             {!order.payments?.length && (
               <p className="pt-1 text-xs text-muted-foreground">Chưa phát sinh khoản thu nào.</p>
             )}
+            {Number(order.pending_amount) > 0 && (
+              <p className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                <Clock className="size-4 shrink-0" />
+                Có <b className="num">{vnd(order.pending_amount)} đ</b> tiền về đã đối chiếu,
+                <b> chờ Kế toán xác nhận</b> — chưa trừ vào công nợ.
+              </p>
+            )}
             {Number(order.deposit_expected) > 0 && !order.deposit_confirmed && (
               <p className="flex gap-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
                 <HandCoins className="size-4 shrink-0" />
@@ -194,10 +202,17 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
               {[...order.payments]
                 .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
                 .map(p => (
-                <div key={p.id} className="flex items-start gap-3 rounded-lg border p-2.5 text-sm">
+                <div key={p.id} className={`flex items-start gap-3 rounded-lg border p-2.5 text-sm ${
+                  p.confirmed === false ? 'border-amber-200 bg-amber-50/60' : ''}`}>
+                  <ChungTu value={p.proof_path} size="sm" readOnly onChange={() => {}} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">
+                    <p className="flex flex-wrap items-center gap-1.5 font-medium">
                       {dmy(p.payment_date)} · {PAYMENT_TYPE_LABEL[p.payment_type] ?? p.payment_type}
+                      {p.confirmed === false
+                        ? <Badge className="border-amber-200 bg-amber-100 text-amber-800">
+                            <Clock className="size-3" /> chờ Kế toán xác nhận
+                          </Badge>
+                        : <CheckCircle2 className="size-3.5 text-emerald-600" />}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {[p.method, p.reference_no, p.transfer_note].filter(Boolean).join(' · ') || 'Không có chứng từ'}

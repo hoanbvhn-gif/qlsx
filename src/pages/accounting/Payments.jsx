@@ -6,6 +6,7 @@ import PageHeader from '@/components/common/PageHeader'
 import EmptyState from '@/components/common/EmptyState'
 import PaymentDialog from '@/components/common/PaymentDialog'
 import StatCard from '@/components/common/StatCard'
+import ChoXacNhanBox from '@/components/common/ChoXacNhanBox'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +40,8 @@ export default function Payments() {
   return (
     <>
       <PageHeader title="Thu tiền & Công nợ" desc="Ghi nhận đặt cọc / thanh toán, hệ thống tự tính số dư còn nợ" />
+
+      <ChoXacNhanBox onDone={reload} />
 
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         <StatCard label="Tổng giá trị đơn" value={vnd(tot.amount)} icon={CircleDollarSign} />

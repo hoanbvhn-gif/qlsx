@@ -18,10 +18,12 @@ import { vnd, dmy, dmyhm } from '@/lib/format'
 import { cn, noAccent } from '@/lib/utils'
 import {
   Search, Download, Wallet, TrendingUp, CheckCircle2, Circle,
-  Landmark, Banknote, CalendarDays, RotateCcw, PencilLine, Ban, Clock, Trash2, AlertTriangle
+  Landmark, Banknote, CalendarDays, RotateCcw, PencilLine, Ban, Clock, Trash2, AlertTriangle,
+  ImageOff, Paperclip
 } from 'lucide-react'
 import { toast } from 'sonner'
 import AmendmentDialog from './AmendmentDialog'
+import { ChungTuNho, linkChungTu } from '@/components/common/ChungTu'
 
 const TYPE_LABEL = {
   deposit: 'Đặt cọc', partial: 'Thanh toán từng phần',
@@ -50,11 +52,13 @@ export default function PaymentLedger() {
   const [q, setQ] = useState('')
   const [method, setMethod] = useState('')
   const [rec, setRec] = useState('')
+  const [ct, setCt] = useState('')
   const [amend, setAmend] = useState(null)
   const [del, setDel] = useState(null)          // but toan Giam doc muon xoa han
   const [delReason, setDelReason] = useState('')
   const [delBusy, setDelBusy] = useState(false)
   const isBoss = profile?.role === 'management'
+  const [anh, setAnh] = useState({})        // duong dan -> link xem tam thoi
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -67,6 +71,9 @@ export default function PaymentLedger() {
     if (error) toast.error(error.message)
     setRows(data ?? [])
     setLoading(false)
+    // Xin link xem anh cho ca trang trong 1 lan goi
+    const paths = (data ?? []).map(r => r.proof_path).filter(Boolean)
+    if (paths.length) linkChungTu(paths).then(setAnh)
   }, [from, to])
 
   useEffect(() => { load() }, [load])
@@ -76,15 +83,17 @@ export default function PaymentLedger() {
     return rows.filter(r =>
       (!method || r.method === method) &&
       (!rec || (rec === 'yes' ? r.reconciled : !r.reconciled)) &&
+      (!ct || (ct === 'yes' ? r.co_chung_tu : !r.co_chung_tu)) &&
       (!key || noAccent(`${r.order_code} ${r.customer_name} ${r.reference_no ?? ''} ${r.transfer_note ?? ''}`).includes(key))
     )
-  }, [rows, q, method, rec])
+  }, [rows, q, method, rec, ct])
 
   const sum = useMemo(() => ({
     total: list.reduce((a, r) => a + Number(r.amount), 0),
     count: list.length,
     done: list.filter(r => r.reconciled).length,
-    pending: list.filter(r => !r.reconciled).reduce((a, r) => a + Number(r.amount), 0)
+    pending: list.filter(r => !r.reconciled).reduce((a, r) => a + Number(r.amount), 0),
+    thieuCt: list.filter(r => !r.co_chung_tu && !r.voided).length
   }), [list])
 
   const methods = useMemo(() => [...new Set(rows.map(r => r.method).filter(Boolean))], [rows])
@@ -112,12 +121,13 @@ export default function PaymentLedger() {
 
   const exportCsv = () => {
     const head = ['Ngày thu', 'Mã đơn', 'Mã KH', 'Khách hàng', 'MST', 'Loại', 'Hình thức',
-      'Tài khoản nhận', 'Số chứng từ', 'Nội dung CK', 'Số tiền', 'NVKD', 'Người ghi', 'Đã đối chiếu', 'Ghi chú']
+      'Tài khoản nhận', 'Số chứng từ', 'Nội dung CK', 'Số tiền', 'NVKD', 'Người ghi',
+      'Có ảnh CK', 'Đã đối chiếu', 'Ghi chú']
     const body = list.map(r => [
       dmy(r.payment_date), r.order_code, r.customer_code ?? '', r.customer_name, r.tax_code ?? '',
       TYPE_LABEL[r.payment_type] ?? r.payment_type, r.method ?? '', r.bank_account ?? '',
       r.reference_no ?? '', r.transfer_note ?? '', r.amount, r.sales_name ?? '',
-      r.nguoi_ghi ?? '', r.reconciled ? 'Đã đối chiếu' : 'Chưa', r.note ?? ''
+      r.nguoi_ghi ?? '', r.co_chung_tu ? 'x' : '', r.reconciled ? 'Đã đối chiếu' : 'Chưa', r.note ?? ''
     ])
     const csv = '﻿' + [head, ...body]
       .map(rr => rr.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -155,13 +165,14 @@ export default function PaymentLedger() {
         <StatCard label="Tổng thu trong kỳ" value={vnd(sum.total)} icon={TrendingUp} tone="text-emerald-600" />
         <StatCard label="Số bút toán" value={sum.count} icon={Wallet} />
         <StatCard label="Đã đối chiếu" value={`${sum.done}/${sum.count}`} icon={CheckCircle2} tone="text-emerald-600" />
-        <StatCard label="Chưa đối chiếu" value={vnd(sum.pending)} icon={Landmark} tone="text-amber-600" />
+        <StatCard label="Chưa đối chiếu" value={vnd(sum.pending)} icon={Landmark} tone="text-amber-600"
+          sub={sum.thieuCt ? `${sum.thieuCt} khoản chưa có chứng từ` : 'đủ chứng từ'} />
       </div>
 
       {/* ----- Bo loc ----- */}
       <Card className="mb-4">
         <CardContent className="space-y-3 p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1.5">
               <Label>Từ ngày</Label>
               <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />
@@ -183,6 +194,14 @@ export default function PaymentLedger() {
                 <option value="">Tất cả</option>
                 <option value="no">Chưa đối chiếu</option>
                 <option value="yes">Đã đối chiếu</option>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Chứng từ</Label>
+              <Select value={ct} onChange={e => setCt(e.target.value)}>
+                <option value="">Tất cả</option>
+                <option value="no">Chưa có chứng từ</option>
+                <option value="yes">Đã có chứng từ</option>
               </Select>
             </div>
           </div>
@@ -219,6 +238,7 @@ export default function PaymentLedger() {
                 <TableHead>Loại</TableHead>
                 <TableHead>Hình thức</TableHead>
                 <TableHead>Số chứng từ</TableHead>
+                <TableHead className="text-center">Ảnh CK</TableHead>
                 <TableHead className="text-right">Số tiền</TableHead>
                 <TableHead>Người ghi</TableHead>
                 <TableHead className="text-center">Đối chiếu</TableHead>
@@ -229,7 +249,8 @@ export default function PaymentLedger() {
               {list.map(r => (
                 <TableRow key={r.id} className={cn(
                   Number(r.amount) < 0 && 'bg-rose-50/40',
-                  r.voided && 'bg-muted/60 text-muted-foreground')}>
+                  r.voided && 'bg-muted/60 text-muted-foreground',
+                  r.confirmed === false && 'bg-amber-50/60')}>
                   <TableCell className="whitespace-nowrap">
                     {dmy(r.payment_date)}
                     <span className="block text-xs text-muted-foreground">{dmyhm(r.created_at)}</span>
@@ -237,6 +258,9 @@ export default function PaymentLedger() {
                   <TableCell className="font-mono font-medium">
                     {r.order_code}
                     {r.voided && <span className="block text-[11px] font-sans text-rose-600">ĐÃ HỦY</span>}
+                    {r.confirmed === false && (
+                      <span className="block text-[11px] font-sans text-amber-700">CHƯA HẠCH TOÁN</span>
+                    )}
                   </TableCell>
                   <TableCell className="min-w-[170px]">
                     {r.customer_name}
@@ -254,6 +278,11 @@ export default function PaymentLedger() {
                     {r.transfer_note && (
                       <span className="block truncate text-xs text-muted-foreground">{r.transfer_note}</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      <ChungTuNho path={r.proof_path} url={anh[r.proof_path]} />
+                    </div>
                   </TableCell>
                   <TableCell className={cn('num text-right font-semibold',
                     r.voided ? 'text-muted-foreground line-through'
@@ -275,7 +304,11 @@ export default function PaymentLedger() {
                     </button>
                   </TableCell>
                   <TableCell className="text-right">
-                    {r.co_yeu_cau_sua ? (
+                    {r.confirmed === false ? (
+                      <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                        <Clock className="mr-1 size-3" /> Chờ Kế toán xác nhận
+                      </Badge>
+                    ) : r.co_yeu_cau_sua ? (
                       <Badge className="bg-amber-50 text-amber-700 border-amber-200">
                         <Clock className="mr-1 size-3" /> Chờ GĐ duyệt
                       </Badge>
@@ -349,6 +382,10 @@ export default function PaymentLedger() {
         thời gian, mở cả hai bằng Excel rồi dò theo cột <b>Số tiền</b> và <b>Nội dung CK</b>.
         Khoản nào khớp thì quay lại đây bấm vào ô <b>Chưa</b> để chuyển thành <b>Đã khớp</b>.
         Cuối kỳ chỉ cần lọc &quot;Chưa đối chiếu&quot; là ra ngay danh sách cần xử lý.
+        <br /><br />
+        <b>Cột Ảnh CK:</b> có ảnh nghĩa là tiền đã về tài khoản và có chứng từ chứng minh —
+        bấm vào ảnh để xem to. Ô để trắng nghĩa là chưa ai đính chứng từ, cần bổ sung trước khi
+        đối chiếu sao kê. Lọc <b>&quot;Chưa có chứng từ&quot;</b> là ra ngay danh sách còn thiếu.
         <br /><br />
         <b>Ghi sai thì sao?</b> Bấm <b>Sửa</b> ở cột cuối để gửi yêu cầu điều chỉnh kèm lý do.
         Số đã thu giữ nguyên cho tới khi Ban Giám đốc duyệt. Bút toán không bao giờ bị xóa —

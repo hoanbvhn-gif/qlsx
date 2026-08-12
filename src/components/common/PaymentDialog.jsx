@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import BankTxnPicker from '@/components/common/BankTxnPicker'
 import { vnd, dmy, parseNum, loiTiengViet } from '@/lib/format'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Landmark } from 'lucide-react'
+import ChungTu from '@/components/common/ChungTu'
 import { toast } from 'sonner'
 
 export const TYPES = [
@@ -28,14 +30,16 @@ export default function PaymentDialog({ order, onClose, onDone, userId }) {
   const [history, setHistory] = useState([])
   const [form, setForm] = useState({
     payment_type: 'deposit', amount: '', payment_date: new Date().toISOString().slice(0, 10),
-    method: 'Chuyển khoản', reference_no: '', bank_account: '', transfer_note: '', note: ''
+    method: 'Chuyển khoản', reference_no: '', bank_account: '', transfer_note: '', note: '',
+    proof_path: ''
   })
   const [busy, setBusy] = useState(false)
+  const [bankTxn, setBankTxn] = useState(null)   // khoan tien ve duoc chon tu bang ke
 
   useEffect(() => {
     if (!order) return
     setForm(f => ({
-      ...f, amount: '', reference_no: '', transfer_note: '', note: '',
+      ...f, amount: '', reference_no: '', transfer_note: '', note: '', proof_path: '',
       payment_type: Number(order.paid_amount) > 0 ? 'final' : 'deposit'
     }))
     supabase.from('payments').select('*').eq('order_id', order.id)
@@ -46,6 +50,23 @@ export default function PaymentDialog({ order, onClose, onDone, userId }) {
   if (!order) return null
   const amt = parseNum(form.amount)
   const after = Number(order.debt_amount) - (form.payment_type === 'refund' ? -amt : amt)
+
+  /** Chon mot khoan tien ve -> tu dien so tien, ngay, chung tu, noi dung CK */
+  const chonKhoanTienVe = (r) => {
+    setBankTxn(r)
+    setForm(f => ({
+      ...f,
+      amount: String(Math.round(Math.min(
+        Number(r.con_lai ?? r.amount_in),
+        Number(order.debt_amount) > 0 ? Number(order.debt_amount) : Number(r.con_lai ?? r.amount_in)
+      ))),
+      payment_date: r.posting_date,
+      method: 'Chuyển khoản',
+      reference_no: r.bank_ref,
+      transfer_note: r.content ?? '',
+      bank_account: r.account_no ? `${r.bank_name ?? ''} ${r.account_no}`.trim() : f.bank_account
+    }))
+  }
 
   const save = async () => {
     if (!amt) return toast.error('Nhập số tiền.')
@@ -60,6 +81,8 @@ export default function PaymentDialog({ order, onClose, onDone, userId }) {
       bank_account: form.bank_account || null,
       transfer_note: form.transfer_note || null,
       note: form.note || null,
+      proof_path: form.proof_path || null,
+      bank_txn_id: bankTxn?.id ?? null,
       created_by: userId
     })
     setBusy(false)
@@ -80,6 +103,20 @@ export default function PaymentDialog({ order, onClose, onDone, userId }) {
           <I k="Tổng tiền" v={vnd(order.total_amount)} />
           <I k="Đã thu" v={vnd(order.paid_amount)} tone="text-emerald-600" />
           <I k="Còn nợ" v={vnd(order.debt_amount)} tone="text-rose-600" />
+        </div>
+
+        {/* ----- Doi chieu voi bang ke ngan hang ----- */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            <Landmark className="size-4" /> Khoản tiền về từ ngân hàng
+          </Label>
+          <BankTxnPicker order={order} value={bankTxn} soTienGhi={parseNum(form.amount)}
+            onPick={chonKhoanTienVe} onClear={() => setBankTxn(null)} />
+          <p className="text-xs text-muted-foreground">
+            Chọn khoản tiền khách đã chuyển để tự điền số tiền và chứng từ.
+            Một khoản chuyển chia được cho nhiều đơn — phần chưa dùng vẫn nằm trong danh sách.
+            Thu tiền mặt thì bỏ qua ô này, nhập tay bên dưới.
+          </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -136,6 +173,18 @@ export default function PaymentDialog({ order, onClose, onDone, userId }) {
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Diễn giải</Label>
             <Textarea rows={2} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Chứng từ chuyển khoản</Label>
+            <div className="mt-1.5 flex items-center gap-3 rounded-lg border p-2.5">
+              <ChungTu value={form.proof_path}
+                onChange={v => setForm(f => ({ ...f, proof_path: v }))} />
+              <p className="text-xs text-muted-foreground">
+                {form.proof_path
+                  ? 'Đã đính chứng từ — sổ thu tiền sẽ hiện ảnh này'
+                  : 'Đính ảnh sao kê hoặc biên lai để sau này đối chiếu ngân hàng'}
+              </p>
+            </div>
           </div>
         </div>
 

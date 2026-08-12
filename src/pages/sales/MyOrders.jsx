@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useOrders } from '@/hooks/useOrders'
 import PageHeader from '@/components/common/PageHeader'
 import OrderDetailDialog from '@/components/common/OrderDetailDialog'
+import GhiTienVeDialog from '@/components/common/GhiTienVeDialog'
 import DesignLinksDialog from '@/components/common/DesignLinksDialog'
 import EmptyState from '@/components/common/EmptyState'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
@@ -15,8 +16,11 @@ import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { vnd, dmy, STATUS, payStatus } from '@/lib/format'
-import { FilePlus2, Search, Send, Eye, FolderPlus, Trash2 } from 'lucide-react'
+import { FilePlus2, Search, Send, Eye, FolderPlus, Trash2, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
+
+/** Tu luc Ke toan duyet don tro di thi kinh doanh moi ghi nhan tien ve duoc */
+const COTHU = ['approved', 'in_production', 'completed', 'delivered']
 
 export default function MyOrders() {
   const { profile } = useAuth()
@@ -27,6 +31,7 @@ export default function MyOrders() {
   const [design, setDesign] = useState(null)
   const [confirm, setConfirm] = useState(null)   // don dang cho xac nhan gui
   const [del, setDel] = useState(null)          // don nhap muon xoa
+  const [thu, setThu] = useState(null)          // don dang ghi nhan tien ve
 
   const rows = useMemo(() => orders.filter(o =>
     (!st || o.status === st) &&
@@ -84,6 +89,12 @@ export default function MyOrders() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button size="sm" variant="ghost" onClick={() => setSel(o)}><Eye className="size-4" /></Button>
+                      {COTHU.includes(o.status) && Number(o.debt_amount) > 0 && (
+                        <Button size="sm" variant="outline" onClick={() => setThu(o)}
+                          title="Khách đã chuyển tiền — gắn khoản tiền về vào đơn này">
+                          <Landmark className="size-4" /> Tiền về
+                        </Button>
+                      )}
                       {['draft', 'rejected'].includes(o.status) && (
                         <>
                           <Button size="sm" variant="outline" onClick={() => setDesign(o)}>
@@ -108,7 +119,17 @@ export default function MyOrders() {
           </Table>
         )}
 
-      <OrderDetailDialog order={sel} open={!!sel} onOpenChange={v => !v && setSel(null)} />
+      <OrderDetailDialog order={sel} open={!!sel} onOpenChange={v => !v && setSel(null)}
+        footer={sel && COTHU.includes(sel.status) && (
+          <div className="flex justify-end border-t pt-4">
+            <Button variant="outline" onClick={() => { const o = sel; setSel(null); setThu(o) }}>
+              <Landmark className="size-4" /> Ghi nhận tiền về
+            </Button>
+          </div>
+        )} />
+
+      <GhiTienVeDialog order={thu} open={!!thu} userId={profile.id}
+        onOpenChange={v => !v && setThu(null)} onDone={reload} />
 
       {/* Xoa don nhap */}
       <Dialog open={!!del} onOpenChange={v => !v && setDel(null)}>
@@ -166,6 +187,12 @@ function PayCell({ order }) {
         <Badge className={p.tone}>{p.label}</Badge>
         {p.debt > 0 && (
           <span className="num text-xs font-medium text-rose-600">còn {vnd(p.debt)}</span>
+        )}
+        {Number(order.pending_amount) > 0 && (
+          <Badge className="border-amber-200 bg-amber-50 text-amber-700"
+            title="Bạn đã gắn khoản tiền về, chờ Kế toán xác nhận">
+            chờ duyệt {vnd(order.pending_amount)}
+          </Badge>
         )}
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
