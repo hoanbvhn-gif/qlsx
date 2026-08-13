@@ -631,6 +631,13 @@ export default function NewOrder() {
                   </>
                 )}
 
+                <p className="rounded-lg border border-sky-200 bg-white/70 p-2 text-xs text-sky-900">
+                  Ô này chỉ dành cho <b>lần trả đầu tiên</b> lúc đặt hàng.
+                  Khách trả tiếp lần 2, lần 3 thì vào <b>Đơn hàng của tôi</b> → bấm
+                  nút <b>Thu tiền</b> ở đúng đơn đó, ghi bao nhiêu lần cũng được
+                  cho tới khi hết nợ.
+                </p>
+
                 {cachCoc !== 'chua' && (
                   <p className="text-xs text-sky-800">
                     {khoanCoc
