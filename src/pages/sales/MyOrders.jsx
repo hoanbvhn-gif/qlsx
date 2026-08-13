@@ -94,7 +94,10 @@ export default function MyOrders() {
                   <TableCell><StatusBadge status={o.status} /></TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setSel(o)}><Eye className="size-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSel(o)}
+                        title="Xem chi tiết đơn: hàng hóa, đã thu, còn nợ, tiến độ">
+                        <Eye className="size-4" /> Chi tiết
+                      </Button>
                       {COTHU.includes(o.status) && Number(o.debt_amount) > 0 && (
                         <Button size="sm" variant="outline" onClick={() => setThu(o)}
                           title="Khách trả tiền — chuyển khoản hoặc tiền mặt">

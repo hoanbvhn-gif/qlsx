@@ -62,13 +62,15 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
     setCach('ck'); lamMoiForm(); taiLichSu()
   }, [open, order?.id])
 
-  if (!order) return null
-
-  const conNo = Number(order.debt_amount ?? 0)
-  const choDuyet = lichSu.filter(p => !p.confirmed)
-  const tongCho = choDuyet.reduce((a, p) => a + Number(p.amount), 0)
-  const daThu = Number(order.paid_amount ?? 0)
-  const soLan = lichSu.filter(p => p.confirmed).length
+  /* ---------------------------------------------------------------
+     MOI SO LIEU TINH O DAY, TRUOC MOI LENH return.
+     React bat buoc so luong hook moi lan ve phai giong nhau — dat
+     useEffect sau 'if (!order) return null' la man hinh trang xoa.
+     --------------------------------------------------------------- */
+  const conNo   = Number(order?.debt_amount ?? 0)
+  const daThu   = Number(order?.paid_amount ?? 0)
+  const tongCho = lichSu.filter(p => !p.confirmed).reduce((a, p) => a + Number(p.amount), 0)
+  const soLan   = lichSu.filter(p => p.confirmed).length
 
   const amt = parseNum(soTien)
   const conLaiCuaKhoan = txn ? Number(txn.con_lai ?? txn.amount_in) : 0
@@ -79,6 +81,8 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
     if (!amt) return
     setLoai(daThu <= 0 && soLan === 0 ? 'deposit' : (conNoSau > 0.01 ? 'partial' : 'final'))
   }, [amt, daThu, soLan, conNoSau])
+
+  if (!order) return null
 
   const chon = (r) => {
     setTxn(r)
