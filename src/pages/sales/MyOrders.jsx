@@ -15,7 +15,7 @@ import { Select } from '@/components/ui/select'
 import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { vnd, dmy, STATUS, payStatus } from '@/lib/format'
+import { vnd, dmy, STATUS, payStatus, loiTiengViet } from '@/lib/format'
 import { FilePlus2, Search, Send, Eye, FolderPlus, Trash2, Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -41,8 +41,14 @@ export default function MyOrders() {
   const submit = async (o) => {
     const { error } = await supabase.from('orders')
       .update({ status: 'pending_accounting', reject_reason: null }).eq('id', o.id)
-    if (error) return toast.error(error.message)
-    toast.success(`Đã gửi đơn ${o.order_code} sang Kế toán`)
+    if (error) return toast.error(loiTiengViet(error))
+
+    // Duoi nguong thi DB tu chuyen sang 'approved' — doc lai de bao cho dung
+    const { data } = await supabase.from('orders')
+      .select('status').eq('id', o.id).maybeSingle()
+    toast.success(data?.status === 'approved'
+      ? `Đơn ${o.order_code} đã duyệt tự động — đã xuống bộ phận Sản xuất`
+      : `Đã gửi đơn ${o.order_code} sang Kế toán`)
     reload()
   }
 

@@ -95,6 +95,13 @@ export default function NewOrder() {
 
   const [maGoiY, setMaGoiY] = useState('')
 
+  // Nguong tu duyet — don nho hon thi gui la xuong San xuat luon
+  const [nguong, setNguong] = useState(0)
+  useEffect(() => {
+    supabase.from('app_settings').select('value').eq('key', 'nguong_tu_duyet').maybeSingle()
+      .then(({ data }) => setNguong(Number(data?.value ?? 0)))
+  }, [])
+
   const capMaKhachMoi = useCallback(async () => {
     const { data } = await supabase.rpc('next_customer_code')
     if (data) { setMaGoiY(data); setHead(h => (h.customer_id ? h : { ...h, customer_code: data })) }
@@ -143,6 +150,9 @@ export default function NewOrder() {
     }
     return { sub, vat, total: sub + vat }
   }, [lines])
+
+  // Don nho hon nguong: gui la xuong San xuat luon, khong qua Ke toan
+  const tuDuyet = nguong > 0 && totals.total > 0 && totals.total < nguong
 
   const validate = (forSubmit) => {
     if (!head.customer_name.trim()) return 'Chưa nhập tên khách hàng.'
@@ -214,7 +224,7 @@ export default function NewOrder() {
         customer_phone: head.customer_phone,
         sales_id: profile.id,
         entity_id: entity?.id ?? null,
-        status: forSubmit ? 'pending_accounting' : 'draft',
+        status: 'draft',
         design_file_path: primaryRef,
         design_file_name: primary ? (primary.file_name.trim() || 'Thiết kế') : null,
         design_uploaded_at: primary ? new Date().toISOString() : null,
@@ -259,7 +269,18 @@ export default function NewOrder() {
       }
 
       if (forSubmit) {
-        toast.success(`Đã gửi đơn ${order.order_code} sang Kế toán duyệt`)
+        /* 6. Gui duyet SAU KHI da co du dong hang — luc nay he thong moi
+              biet don to hay nho de quyet dinh co tu duyet hay khong. */
+        const { error: eS } = await supabase.from('orders')
+          .update({ status: 'pending_accounting' }).eq('id', order.id)
+        if (eS) throw eS
+
+        const { data: sau } = await supabase.from('orders')
+          .select('status').eq('id', order.id).maybeSingle()
+
+        toast.success(sau?.status === 'approved'
+          ? `Đơn ${order.order_code} đã duyệt tự động — đã xuống bộ phận Sản xuất`
+          : `Đã gửi đơn ${order.order_code} sang Kế toán duyệt`)
         nav('/kinhdoanh/don-hang')
       } else {
         toast.success(`Đã lưu nháp đơn ${order.order_code}`)
@@ -593,7 +614,8 @@ export default function NewOrder() {
                 {cachCoc !== 'chua' && (
                   <p className="text-xs text-sky-800">
                     {khoanCoc
-                      ? <>Đã chỉ đúng khoản khách chuyển — Kế toán bấm xác nhận là vào sổ, khỏi dò sao kê.</>
+                      ? <>Đã chỉ đúng khoản khách chuyển — <b>vào sổ thu tiền ngay</b> khi lưu đơn,
+                          công nợ trừ luôn.</>
                       : cachCoc === 'tm'
                         ? <>Tiền mặt là <b>lời khai</b>. Kế toán đếm tiền thực tế rồi mới xác nhận vào sổ.</>
                         : <>Chọn khoản tiền về ở trên để Kế toán khỏi phải dò lại sao kê.</>}
@@ -615,6 +637,19 @@ export default function NewOrder() {
                 <Row k="Tổng thanh toán" v={vnd(totals.total) + ' đ'} bold />
               </div>
 
+              {totals.total > 0 && nguong > 0 && (
+                <p className={cn('rounded-lg border p-2.5 text-xs',
+                  tuDuyet
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                    : 'border-amber-200 bg-amber-50 text-amber-900')}>
+                  {tuDuyet
+                    ? <>Đơn dưới <b className="num">{vnd(nguong)} đ</b> — bấm gửi là <b>xuống Sản xuất luôn</b>,
+                        không phải chờ Kế toán duyệt.</>
+                    : <>Đơn từ <b className="num">{vnd(nguong)} đ</b> trở lên — gửi xong <b>chờ Kế toán duyệt</b>
+                        rồi mới xuống Sản xuất.</>}
+                </p>
+              )}
+
               <div className="grid gap-2 sm:grid-cols-2">
                 <Button onClick={() => save(false)} disabled={busy} size="lg">
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
@@ -626,7 +661,7 @@ export default function NewOrder() {
                     if (err) return toast.error(err)
                     setReview(true)
                   }}>
-                  <Send className="size-4" /> Xem lại &amp; gửi duyệt
+                  <Send className="size-4" /> {tuDuyet ? 'Xem lại & gửi Sản xuất' : 'Xem lại & gửi duyệt'}
                 </Button>
               </div>
               {!validFiles.length && (

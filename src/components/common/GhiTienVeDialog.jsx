@@ -24,7 +24,8 @@ import { toast } from 'sonner'
  *   - Chuyen khoan: bat buoc chi ra khoan trong bang ke -> co doi chieu that
  *   - Tien mat:     chi la loi khai, phai ghi ro ai dua -> Ke toan dem tien roi duyet
  *
- * Ca hai deu CHO KE TOAN XAC NHAN, chua tru cong no.
+ * Chuyen khoan VAO SO NGAY (bang ke la chung cu tu ngan hang).
+ * Tien mat CHO KE TOAN XAC NHAN vi khong co gi doi chieu.
  * Khach tra 2-3 lan thi mo lai hop thoai nay 2-3 lan.
  */
 const LOAI = [
@@ -119,9 +120,13 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
     setBusy(false)
     if (error) return toast.error(loiTiengViet(error))
 
-    toast.success(conNoSau > 0.01
-      ? `Đã gửi Kế toán xác nhận. Đơn còn ${vnd(conNoSau)} đ, thu tiếp lần sau vào đúng chỗ này.`
-      : 'Đã gửi Kế toán xác nhận. Đơn này thu đủ rồi.')
+    if (cach === 'ck') {
+      toast.success(conNoSau > 0.01
+        ? `Đã ghi vào sổ. Đơn còn ${vnd(conNoSau)} đ — khách trả tiếp thì vào lại đây.`
+        : 'Đã ghi vào sổ. Đơn này thu đủ rồi.')
+    } else {
+      toast.success('Đã gửi Kế toán xác nhận. Tiền mặt phải đếm thực tế nên chưa trừ công nợ.')
+    }
     lamMoiForm(); taiLichSu(); onDone?.()
   }
 
@@ -150,7 +155,7 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
           <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
             <Clock className="mt-0.5 size-4 shrink-0" />
             <span>
-              Đang có <b className="num">{vnd(tongCho)} đ</b> chờ Kế toán xác nhận —
+              Đang có <b className="num">{vnd(tongCho)} đ</b> tiền mặt chờ Kế toán đếm và xác nhận —
               số này chưa trừ vào ô "Còn nợ" ở trên.
             </span>
           </p>
@@ -162,10 +167,10 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
           <div className="grid grid-cols-2 gap-2">
             <CachNut active={cach === 'ck'} onClick={() => doiCach('ck')}
               icon={Landmark} title="Chuyển khoản"
-              desc="Chọn đúng khoản trong bảng kê" />
+              desc="Chọn khoản trong bảng kê · vào sổ ngay" />
             <CachNut active={cach === 'tm'} onClick={() => doiCach('tm')}
               icon={Banknote} title="Tiền mặt"
-              desc="Khách đưa tiền tận tay" />
+              desc="Khách đưa tận tay · chờ Kế toán" />
           </div>
         </div>
 
@@ -177,6 +182,10 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
             <p className="text-xs text-muted-foreground">
               Gõ ngày <b>12/08</b>, số tiền <b>2510000</b> hoặc tên khách để tìm.
               Không thấy khoản nào thì Kế toán chưa nhập bảng kê của ngày đó.
+            </p>
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-900">
+              Khoản chọn từ bảng kê là chứng cứ từ ngân hàng nên <b>vào sổ ngay</b>,
+              công nợ trừ luôn — không phải chờ ai duyệt.
             </p>
           </div>
         )}
@@ -235,7 +244,9 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
                   <b>{vnd(amt)} đ</b>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Còn nợ sau khi Kế toán duyệt</span>
+                  <span className="text-muted-foreground">
+                    {cach === 'ck' ? 'Còn nợ sau khi ghi' : 'Còn nợ sau khi Kế toán duyệt'}
+                  </span>
                   <b className={conNoSau > 0.01 ? 'text-rose-600' : 'text-emerald-600'}>
                     {vnd(Math.max(0, conNoSau))} đ
                   </b>
@@ -324,7 +335,8 @@ export default function GhiTienVeDialog({ order, open, onOpenChange, onDone, use
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
           <Button onClick={luu} disabled={busy || (cach === 'ck' && !txn) || !amt}>
-            {busy && <Loader2 className="size-4 animate-spin" />} Gửi Kế toán xác nhận
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            {cach === 'ck' ? 'Ghi vào sổ' : 'Gửi Kế toán xác nhận'}
           </Button>
         </DialogFooter>
       </DialogContent>

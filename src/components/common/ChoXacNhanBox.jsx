@@ -63,11 +63,12 @@ export default function ChoXacNhanBox({ onDone }) {
       <Card className="mb-5 border-2 border-amber-300 bg-amber-50/40">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900">
-            <Clock className="size-5" /> Kinh doanh báo tiền về · chờ xác nhận ({rows.length})
+            <Clock className="size-5" /> Kinh doanh khai thu tiền mặt · chờ xác nhận ({rows.length})
           </CardTitle>
           <CardDescription>
-            Tổng <b className="num">{vnd(tong)} đ</b> đã được đối chiếu với bảng kê nhưng
-            chưa hạch toán vào công nợ. Kiểm tra rồi bấm xác nhận.
+            Tổng <b className="num">{vnd(tong)} đ</b> chưa hạch toán vào công nợ.
+            Tiền mặt không có bảng kê để đối chiếu — đếm tiền thực tế rồi mới xác nhận.
+            (Khoản chuyển khoản đã vào sổ ngay, không xuất hiện ở đây.)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -80,15 +81,22 @@ export default function ChoXacNhanBox({ onDone }) {
                     <span className="font-mono font-semibold">#{r.order_code}</span>
                     <span className="truncate">{r.customer_name}</span>
                     <span className="num font-semibold text-emerald-700">{vnd(r.amount)} đ</span>
-                    {lech && (
-                      <Badge className="border-sky-200 bg-sky-50 text-sky-700">
-                        một phần của {vnd(r.so_tien_ve)}
-                      </Badge>
-                    )}
+                    {r.bank_ref
+                      ? (lech && (
+                          <Badge className="border-sky-200 bg-sky-50 text-sky-700">
+                            một phần của {vnd(r.so_tien_ve)}
+                          </Badge>
+                        ))
+                      : (
+                        <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                          tiền mặt
+                        </Badge>
+                      )}
                   </p>
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Landmark className="size-3.5 shrink-0" />
-                    {dmy(r.payment_date)} · {r.counterparty || '--'}
+                    {dmy(r.payment_date)} · {r.method}
+                    {r.counterparty ? ` · ${r.counterparty}` : ''}
                     {r.bank_ref ? ` · ${r.bank_ref}` : ''}
                   </p>
                   {r.noi_dung_ck && (

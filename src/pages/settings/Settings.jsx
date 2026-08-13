@@ -92,6 +92,33 @@ export default function Settings() {
         desc="Khai báo nơi lưu file thiết kế Market và quy tắc đặt tên thư mục" />
 
       <div className="grid gap-5 lg:grid-cols-3">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Ngưỡng tự duyệt đơn hàng</CardTitle>
+            <CardDescription>
+              Đơn dưới số tiền này thì Kinh doanh gửi là xuống Sản xuất luôn, không qua Kế toán duyệt.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5 sm:max-w-xs">
+              <Label>Số tiền (đồng)</Label>
+              <Input inputMode="decimal" value={form.nguong_tu_duyet ?? ''}
+                onChange={e => set('nguong_tu_duyet', e.target.value.replace(/[^\d]/g, ''))}
+                placeholder="5000000" />
+              <p className="num text-xs font-medium text-sky-700">
+                {Number(form.nguong_tu_duyet) > 0
+                  ? `Đơn dưới ${Number(form.nguong_tu_duyet).toLocaleString('vi-VN')} đ tự duyệt`
+                  : 'Đang tắt — mọi đơn đều phải qua Kế toán duyệt'}
+              </p>
+            </div>
+            <p className="rounded-lg border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+              Đặt <b>0</b> để tắt, mọi đơn quay lại quy trình duyệt như cũ.
+              Đơn tự duyệt vẫn vào nhật ký đầy đủ, Giám đốc xem lại được bất cứ lúc nào.
+              Đơn 0 đồng luôn phải qua Kế toán, không tự duyệt.
+            </p>
+          </CardContent>
+        </Card>
+
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Google Drive</CardTitle>
