@@ -15,6 +15,7 @@ import ProductSearchBox from '@/components/common/ProductSearchBox'
 import ItemPicker from '@/components/common/ItemPicker'
 import AnhMau from '@/components/common/AnhMau'
 import CustomerPicker from '@/components/common/CustomerPicker'
+import MstInput from '@/components/common/MstInput'
 import EntityPicker from '@/components/common/EntityPicker'
 import ChungTu from '@/components/common/ChungTu'
 import BankTxnPicker from '@/components/common/BankTxnPicker'
@@ -359,8 +360,17 @@ export default function NewOrder() {
                 disabled={!!head.customer_id}
                 onChange={e => setHead(h => ({ ...h, customer_code: e.target.value.toUpperCase() }))} />
             </div>
-            <F label="Mã số thuế" value={head.customer_tax_code}
-               onChange={v => setHead(h => ({ ...h, customer_tax_code: v }))} placeholder="0101234567" />
+            <MstInput
+              value={head.customer_tax_code}
+              disabled={!!head.customer_id}
+              tenHienTai={head.customer_name}
+              onChange={v => setHead(h => ({ ...h, customer_tax_code: v }))}
+              onFound={r => setHead(h => ({
+                ...h,
+                customer_name: r.ten,
+                customer_address: h.customer_address?.trim() ? h.customer_address : (r.diaChi ?? '')
+              }))}
+              onRevert={ten => setHead(h => ({ ...h, customer_name: ten }))} />
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Địa chỉ</Label>
               <Input value={head.customer_address}
