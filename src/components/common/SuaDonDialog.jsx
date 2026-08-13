@@ -40,7 +40,8 @@ export default function SuaDonDialog({ order, open, onOpenChange, onSaved }) {
   const { items: catalog } = useItems({ onlyApproved: true })
   const [lines, setLines] = useState([])
   const [head, setHead] = useState({
-    customer_name: '', customer_tax_code: '', customer_address: '', customer_phone: '', note: ''
+    customer_name: '', customer_tax_code: '', customer_address: '', customer_phone: '',
+    legal_name: '', legal_address: '', note: ''
   })
   const [busy, setBusy] = useState(false)
 
@@ -60,6 +61,8 @@ export default function SuaDonDialog({ order, open, onOpenChange, onSaved }) {
       customer_tax_code: order.customer_tax_code ?? '',
       customer_address: order.customer_address ?? '',
       customer_phone: order.customer_phone ?? '',
+      legal_name: order.legal_name ?? '',
+      legal_address: order.legal_address ?? '',
       note: order.note ?? ''
     })
   }, [open, order?.id])
@@ -110,6 +113,8 @@ export default function SuaDonDialog({ order, open, onOpenChange, onSaved }) {
         customer_tax_code: head.customer_tax_code.trim() || null,
         customer_address: head.customer_address.trim() || null,
         customer_phone: head.customer_phone.trim() || null,
+        legal_name: head.legal_name.trim() || null,
+        legal_address: head.legal_address.trim() || null,
         note: head.note.trim() || null
       }).eq('id', order.id)
       if (eH) throw eH
@@ -176,13 +181,13 @@ export default function SuaDonDialog({ order, open, onOpenChange, onSaved }) {
           </div>
           <MstInput
             value={head.customer_tax_code}
-            tenHienTai={head.customer_name}
+            tenPhapLy={head.legal_name}
+            diaChiPhapLy={head.legal_address}
             onChange={v => setHead(h => ({ ...h, customer_tax_code: v }))}
             onFound={r => setHead(h => ({
-              ...h, customer_name: r.ten,
+              ...h, legal_name: r.ten, legal_address: r.diaChi ?? '',
               customer_address: h.customer_address?.trim() ? h.customer_address : (r.diaChi ?? '')
-            }))}
-            onRevert={ten => setHead(h => ({ ...h, customer_name: ten }))} />
+            }))} />
           <div className="space-y-1.5">
             <Label>Điện thoại</Label>
             <Input value={head.customer_phone}

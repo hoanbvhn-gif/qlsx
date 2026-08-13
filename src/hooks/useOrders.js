@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 const ORDER_SELECT = `
   id, order_code, order_date, status,
   customer_id, customer_name, customer_tax_code, customer_address, customer_phone,
+  legal_name, legal_address,
   sales_id, subtotal, vat_amount, total_amount, paid_amount, pending_amount, debt_amount, is_settled,
   design_file_path, design_file_name, note, reject_reason,
   deposit_expected, deposit_note, deposit_confirmed, deposit_proof_path, deposit_bank_txn_id, cancel_reason, entity_id,

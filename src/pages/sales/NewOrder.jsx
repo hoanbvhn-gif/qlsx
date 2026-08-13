@@ -46,6 +46,7 @@ export default function NewOrder() {
     customer_id: '', customer_code: '', customer_name: '',
     customer_tax_code: '', customer_address: '', customer_phone: '',
     order_date: new Date().toISOString().slice(0, 10), note: '',
+    legal_name: '', legal_address: '',
     deposit_expected: '', deposit_note: '', deposit_proof_path: '', deposit_bank_txn_id: null
   })
   const [lines, setLines] = useState([])
@@ -202,7 +203,9 @@ export default function NewOrder() {
           const { data: c, error: eC } = await supabase.from('customers').insert({
             customer_code: maNhap || maMoi || ('KH' + Date.now().toString().slice(-6)),
             name: head.customer_name, tax_code: head.customer_tax_code,
-            address: head.customer_address, phone: head.customer_phone, created_by: profile.id
+            address: head.customer_address, phone: head.customer_phone,
+            legal_name: head.legal_name || null, legal_address: head.legal_address || null,
+            created_by: profile.id
           }).select('id').single()
           if (eC) throw eC
           customerId = c.id
@@ -217,6 +220,10 @@ export default function NewOrder() {
           bo.tax_code = head.customer_tax_code.trim()
         if (cu && !((cu.address ?? '').trim()) && head.customer_address.trim())
           bo.address = head.customer_address.trim()
+        if (cu && !((cu.legal_name ?? '').trim()) && head.legal_name.trim())
+          bo.legal_name = head.legal_name.trim()
+        if (cu && !((cu.legal_address ?? '').trim()) && head.legal_address.trim())
+          bo.legal_address = head.legal_address.trim()
         if (Object.keys(bo).length) await supabase.from('customers').update(bo).eq('id', customerId)
       }
 
@@ -234,6 +241,8 @@ export default function NewOrder() {
         customer_tax_code: head.customer_tax_code,
         customer_address: head.customer_address,
         customer_phone: head.customer_phone,
+        legal_name: head.legal_name || null,
+        legal_address: head.legal_address || null,
         sales_id: profile.id,
         entity_id: entity?.id ?? null,
         status: 'draft',
@@ -344,12 +353,14 @@ export default function NewOrder() {
                 onPick={c => setHead(h => ({
                   ...h, customer_id: c.id, customer_code: c.customer_code, customer_name: c.name,
                   customer_tax_code: c.tax_code ?? '', customer_address: c.address ?? '',
-                  customer_phone: c.phone ?? ''
+                  customer_phone: c.phone ?? '',
+                  legal_name: c.legal_name ?? '', legal_address: c.legal_address ?? ''
                 }))}
                 onFreeText={v => setHead(h => ({ ...h, customer_id: '', customer_name: v }))}
                 onClear={() => setHead(h => ({
                   ...h, customer_id: '', customer_code: maGoiY, customer_name: '',
-                  customer_tax_code: '', customer_address: '', customer_phone: ''
+                  customer_tax_code: '', customer_address: '', customer_phone: '',
+                  legal_name: '', legal_address: ''
                 }))}
               />
               <p className="text-xs text-muted-foreground">
@@ -373,14 +384,16 @@ export default function NewOrder() {
             </div>
             <MstInput
               value={head.customer_tax_code}
-              tenHienTai={head.customer_name}
+              tenPhapLy={head.legal_name}
+              diaChiPhapLy={head.legal_address}
               onChange={v => setHead(h => ({ ...h, customer_tax_code: v }))}
               onFound={r => setHead(h => ({
                 ...h,
-                customer_name: r.ten,
+                legal_name: r.ten,
+                legal_address: r.diaChi ?? '',
+                // Dia chi giao hang de trong thi muon tam dia chi dang ky
                 customer_address: h.customer_address?.trim() ? h.customer_address : (r.diaChi ?? '')
-              }))}
-              onRevert={ten => setHead(h => ({ ...h, customer_name: ten }))} />
+              }))} />
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Địa chỉ</Label>
               <Input value={head.customer_address}

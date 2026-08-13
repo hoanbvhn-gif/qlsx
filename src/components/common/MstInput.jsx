@@ -4,22 +4,24 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { traMST, mstHopLe, chuanHoaMST } from '@/lib/mst'
 import { cn } from '@/lib/utils'
-import { Search, Loader2, CheckCircle2, AlertTriangle, Building2 } from 'lucide-react'
+import { Search, Loader2, CheckCircle2, AlertTriangle, Building2, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
 /**
- * O NHAP MA SO THUE co tra cuu ten doanh nghiep.
+ * O NHAP MA SO THUE co tra cuu thong tin doanh nghiep.
  *
- * Go du 10 so la tu tra, khong phai bam gi. Tra ra thi hien ten day du
- * de nguoi dung bam ap vao o Ten khach hang.
- * Tra khong ra thi khong lam gi ca — ten go tay giu nguyen.
+ * Go du 10 so la tu tra, khong phai bam gi.
+ *
+ * QUAN TRONG: ten tra ve KHONG de len o "Ten khach hang".
+ * Ten goi noi bo ("Tuan Hung", "intec") de tim don va goi dien;
+ * ten dang ky thue de xuat hoa don. Hai viec khac nhau, giu rieng.
  */
 export default function MstInput({
-  value, onChange, onFound, onRevert, tenHienTai, disabled, label = 'Mã số thuế'
+  value, onChange, onFound, tenPhapLy, diaChiPhapLy,
+  disabled, label = 'Mã số thuế'
 }) {
   const [dangTra, setDangTra] = useState(false)
   const [kq, setKq] = useState(null)
-  const [tenCu, setTenCu] = useState(null)   // ten nguoi dung go, de hoan tac
   const daTra = useRef('')
 
   const tra = async (mst, tuDong) => {
@@ -33,15 +35,8 @@ export default function MstInput({
     const r = await traMST(ma)
     setDangTra(false)
     setKq(r)
-
-    if (r.ok) {
-      // MST tra ra dung -> lay ten dang ky luon, khoi bat bam them nut
-      const ten = (tenHienTai ?? '').trim()
-      setTenCu(ten && ten.toLowerCase() !== r.ten.trim().toLowerCase() ? ten : null)
-      onFound?.(r)
-    } else if (!tuDong) {
-      toast.error(r.loi)
-    }
+    if (r.ok) onFound?.(r)
+    else if (!tuDong) toast.error(r.loi)
   }
 
   // Go du so la tu tra, khong bat nguoi dung bam nut
@@ -52,6 +47,11 @@ export default function MstInput({
     const t = setTimeout(() => tra(ma, true), 500)
     return () => clearTimeout(t)
   }, [value])
+
+  // Da luu tu truoc (khach cu) thi van hien, khoi phai tra lai
+  const ten    = kq?.ok ? kq.ten    : (tenPhapLy || '')
+  const diaChi = kq?.ok ? kq.diaChi : (diaChiPhapLy || '')
+  const trangThai = kq?.ok ? kq.trangThai : null
 
   return (
     <div className="space-y-1.5">
@@ -70,42 +70,39 @@ export default function MstInput({
         <p className="text-xs text-muted-foreground">Đang tra cứu bên Cục Thuế...</p>
       )}
 
-      {!dangTra && kq?.ok && (
+      {!dangTra && ten && (
         <div className="space-y-1 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs">
-          <p className="flex items-start gap-1.5 font-medium">
-            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-            <span className="text-emerald-900">{kq.ten}</span>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">
+            Thông tin xuất hóa đơn
           </p>
-          {kq.diaChi && (
+          <p className="flex items-start gap-1.5">
+            <Building2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+            <span className="font-medium text-emerald-900">{ten}</span>
+          </p>
+          {diaChi && (
             <p className="flex items-start gap-1.5 text-muted-foreground">
-              <Building2 className="mt-0.5 size-3.5 shrink-0" />{kq.diaChi}
+              <MapPin className="mt-0.5 size-3.5 shrink-0" />{diaChi}
             </p>
           )}
-          {kq.trangThai && (
-            <p className={cn('text-[11px]',
-              /đang hoạt động/i.test(kq.trangThai) ? 'text-emerald-700' : 'text-rose-600')}>
-              {kq.trangThai}
+          {trangThai && (
+            <p className={cn('flex items-center gap-1.5 text-[11px]',
+              /đang hoạt động/i.test(trangThai) ? 'text-emerald-700' : 'text-rose-600')}>
+              {/đang hoạt động/i.test(trangThai)
+                ? <CheckCircle2 className="size-3" />
+                : <AlertTriangle className="size-3" />}
+              {trangThai}
             </p>
           )}
-          {tenCu && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-emerald-200 pt-1.5">
-              <span className="text-muted-foreground">
-                Đã thay tên bạn gõ (<b>{tenCu}</b>) bằng tên đăng ký.
-              </span>
-              <button type="button"
-                onClick={() => { onRevert?.(tenCu); setTenCu(null) }}
-                className="rounded-md border border-emerald-300 bg-white px-2 py-0.5 font-medium text-emerald-800 transition hover:bg-emerald-100">
-                Giữ tên cũ
-              </button>
-            </div>
-          )}
+          <p className="border-t border-emerald-200 pt-1 text-[11px] text-muted-foreground">
+            Tên khách hàng ở trên giữ nguyên tên gọi nội bộ — không bị đè.
+          </p>
         </div>
       )}
 
       {!dangTra && kq && !kq.ok && mstHopLe(value) && (
         <p className="flex items-start gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-muted-foreground">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-          {kq.loi} Tên khách hàng vẫn dùng đúng cái bạn gõ.
+          {kq.loi}
         </p>
       )}
     </div>

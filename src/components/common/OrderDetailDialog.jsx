@@ -8,7 +8,8 @@ import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS, payStatus, PAYMENT_TYPE_LABEL } f
 import { cn } from '@/lib/utils'
 import {
   ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff,
-  HandCoins, Clock, CheckCircle2, Landmark, Banknote, Circle, Factory, Truck, PencilLine
+  HandCoins, Clock, CheckCircle2, Landmark, Banknote, Circle, Factory, Truck, PencilLine,
+  Building2, AlertTriangle
 } from 'lucide-react'
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
@@ -70,12 +71,39 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
 
         <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm sm:grid-cols-2">
           <Field k="Đơn vị xuất hóa đơn" v={order.entity?.short_name ?? '--'} />
-          <Field k="Khách hàng" v={order.customer_name} />
-          <Field k="Mã số thuế" v={order.customer_tax_code} />
-          <Field k="Địa chỉ" v={order.customer_address} />
+          <Field k="Khách hàng (tên gọi nội bộ)" v={order.customer_name} />
+          <Field k="Địa chỉ giao hàng" v={order.customer_address} />
           <Field k="Điện thoại" v={order.customer_phone} />
           <Field k="Ngày giao dự kiến" v={order.estimated_delivery_date ? dmy(order.estimated_delivery_date) : 'Chưa có'} />
           <Field k="Duyệt lúc" v={order.approved_at ? dmyhm(order.approved_at) : 'Chưa duyệt'} />
+        </div>
+
+        {/* ----- Thong tin xuat hoa don: lay theo dang ky thue ----- */}
+        <div className={cn('space-y-1.5 rounded-xl border p-4 text-sm',
+          order.legal_name ? 'border-emerald-200 bg-emerald-50/50' : 'border-amber-200 bg-amber-50/50')}>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Building2 className="size-3.5" /> Thông tin xuất hóa đơn
+          </p>
+          {order.customer_tax_code ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field k="Mã số thuế" v={order.customer_tax_code} />
+                <Field k="Tên theo đăng ký thuế" v={order.legal_name} />
+              </div>
+              <Field k="Địa chỉ theo đăng ký thuế" v={order.legal_address} />
+              {!order.legal_name && (
+                <p className="flex items-center gap-1.5 pt-1 text-xs text-amber-800">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  Chưa tra cứu tên đăng ký. Mở Sửa đơn, bấm kính lúp cạnh ô mã số thuế.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="flex items-center gap-1.5 text-xs text-amber-800">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              Đơn chưa có mã số thuế — xuất hóa đơn sẽ vướng.
+            </p>
+          )}
         </div>
 
         {/* ----- File thiet ke Market ----- */}
