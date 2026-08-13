@@ -197,15 +197,6 @@ h3{font-size:18px;color:var(--pri-d);margin:26px 0 8px;border-left:4px solid var
   .chbar .cb-so b{font-size:30px}
   .chbar .cb-ky{display:none}
 }
-/* ---- thanh báo có bản mới, dán dưới đáy màn hình ---- */
-#banmoi{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;display:flex;align-items:center;
-  gap:12px;flex-wrap:wrap;justify-content:center;padding:12px 18px;border-radius:16px;
-  background:#1f1b3a;color:#fff;font-weight:600;font-size:14.5px;
-  box-shadow:0 10px 30px rgba(0,0,0,.28)}
-#banmoi b{color:#ffd76e}
-#banmoi button{font:inherit;font-weight:800;border:0;border-radius:99px;padding:8px 16px;cursor:pointer}
-#banmoi #bm-tai{background:#37d67a;color:#08331d}
-#banmoi #bm-bo{background:rgba(255,255,255,.15);color:#fff}
 .thikhoi{margin-top:16px;border-top:2px solid var(--line);padding-top:14px}
 .thikhoi h3{margin:0 0 6px;font-size:16px}
 .thikhoi.khoa{opacity:.72}
@@ -777,7 +768,7 @@ footer{text-align:center;color:var(--ink2);font-size:13px;padding:26px 16px}
    Trước đây gặp lỗi là trang trắng, không biết vì sao.
    Giờ mọi lỗi đều hiện thành khung đỏ đọc được.
    ========================================================= */
-var BAN_WEB = '2026-08-13.sup13';
+var BAN_WEB = '2026-08-13.sup12';
 (function () {
   var daHien = false;
   function hienLoi(tieu, tin, them) {
@@ -22022,18 +22013,6 @@ var BAN_WEB = '2026-08-13.sup13';
       '<button class="btn ghost" id="cd-xoa" style="color:var(--no);border-color:#fbd5d5">Xoá toàn bộ tiến độ</button></div>';
     h += '<p class="muted" style="margin-top:10px">Nút trên tải một bản JSON về máy — dùng khi muốn giữ bản rời ngoài đám mây.</p></div>';
 
-    h += '<div class="card"><h2 class="sec" style="margin-top:0">🔄 Bản web</h2>';
-    h += '<p class="muted" style="margin:0">Máy này đang chạy bản <b>' + BAN_WEB + '</b>.</p>';
-    h += '<div class="row" style="margin-top:12px">' +
-      '<button class="btn sm" id="cd-ktban">Kiểm tra có bản mới không</button>' +
-      '<button class="btn sm ghost" id="cd-epban">⚡ Ép tải lại bỏ qua bộ nhớ đệm</button></div>';
-    h += '<p class="muted" id="cd-banmsg" style="margin-top:10px"></p>';
-    h += '<p class="muted" style="margin-top:6px">Trình duyệt hay giữ bản cũ trong bộ nhớ đệm nên bấm ' +
-      'tải lại mấy lần vẫn ra bản cũ. Nút <b>⚡ Ép tải lại</b> mở trang bằng một địa chỉ khác đi ' +
-      '(thêm <code>?v=…</code>) nên trình duyệt buộc phải lấy bản mới nhất từ máy chủ. ' +
-      'Dữ liệu học của con <b>không bị ảnh hưởng</b> — nó nằm trong máy và trên Supabase, ' +
-      'không dính gì tới địa chỉ trang.</p></div>';
-
     el('pg-caidat').innerHTML = h;
 
     function ghMsg(t, xanh) {
@@ -22041,20 +22020,6 @@ var BAN_WEB = '2026-08-13.sup13';
     }
 
     if (el('cd-thuphao')) el('cd-thuphao').addEventListener('click', function () { phaoHoa('to'); });
-
-    function banMsg(t, xanh) {
-      var n = el('cd-banmsg'); if (n) n.innerHTML = '<span style="color:var(--' + (xanh ? 'ok' : 'no') + ')">' + t + '</span>';
-    }
-    if (el('cd-epban')) el('cd-epban').addEventListener('click', function () { C.doiSangBanMoi(); });
-    if (el('cd-ktban')) el('cd-ktban').addEventListener('click', function () {
-      banMsg('⏳ Đang hỏi máy chủ…', true);
-      C.kiemTraBanMoi(true).then(function (b) {
-        if (b === null || b === undefined) banMsg('⚠️ Không hỏi được máy chủ — kiểm tra mạng.');
-        else if (!b) banMsg('⚠️ Không đọc được số hiệu bản trên máy chủ.');
-        else if (b === BAN_WEB) banMsg('✔ Máy này đang chạy đúng bản mới nhất (' + b + ').', true);
-        else banMsg('🆕 Trên máy chủ đã có bản <b>' + b + '</b> — bấm <b>⚡ Ép tải lại</b> để cập nhật.', true);
-      });
-    });
 
     function taiSaoLuu() {
       var b = new Blob([JSON.stringify(st(), null, 2)], { type: 'application/json' });
@@ -22401,76 +22366,6 @@ var BAN_WEB = '2026-08-13.sup13';
   }
 
   try { el('banso').textContent = 'bản ' + BAN_WEB; } catch (e) { }
-
-  /* =========================================================
-     TỰ BIẾT CÓ BẢN MỚI
-     GitHub Pages (và Safari) giữ bản cũ trong bộ nhớ đệm, bấm tải lại mấy
-     lần vẫn ra bản cũ — bố đã mất cả buổi vì chuyện này. Giờ máy tự đi hỏi
-     máy chủ xem file trên đó là bản nào, khác bản đang chạy thì hiện một
-     thanh mời cập nhật. Bấm vào là tải lại kèm ?v=<mốc thời gian> — địa chỉ
-     khác đi nên trình duyệt BẮT BUỘC phải lấy bản mới, không cãi được.
-     Chỉ đọc ~120 KB đầu file rồi ngắt, không tải hết 1,3 MB.
-     ========================================================= */
-  var BANMOI = null;
-  function doiSangBanMoi() {
-    var u = location.pathname + '?v=' + Date.now();
-    location.replace(u);
-  }
-  /* vào bằng địa chỉ có ?v=… thì dọn lại cho sạch, khỏi lưu dấu vết */
-  (function donV() {
-    if (!/[?&]v=\d+/.test(location.search)) return;
-    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { }
-  })();
-
-  function docBanTrenMayChu() {
-    var u = location.pathname + '?ktr=' + Date.now();
-    return fetch(u, { cache: 'no-store' }).then(function (r) {
-      if (!r.ok || !r.body || !r.body.getReader) {
-        /* trình duyệt cũ không đọc được theo dòng → thôi, đọc cả file */
-        return r.text().then(catBan);
-      }
-      var rd = r.body.getReader(), de = new TextDecoder(), gom = '', da = 0;
-      function tiep() {
-        return rd.read().then(function (x) {
-          if (x.done) return catBan(gom);
-          gom += de.decode(x.value, { stream: true });
-          da += x.value.length;
-          var b = catBan(gom);
-          if (b || da > 200000) { try { rd.cancel(); } catch (e) { } return b; }
-          return tiep();
-        });
-      }
-      return tiep();
-    }).catch(function () { return null; });
-  }
-  function catBan(t) {
-    var m = /var BAN_WEB = '([^']+)'/.exec(t || '');
-    return m ? m[1] : null;
-  }
-
-  function thanhBanMoi(b) {
-    if (document.getElementById('banmoi')) return;
-    var d = document.createElement('div');
-    d.id = 'banmoi';
-    d.innerHTML = '<span>🆕 Có bản mới <b>' + b + '</b> (máy này đang chạy ' + BAN_WEB +
-      ')</span><button id="bm-tai">Cập nhật ngay</button><button id="bm-bo">Để sau</button>';
-    document.body.appendChild(d);
-    document.getElementById('bm-tai').addEventListener('click', doiSangBanMoi);
-    document.getElementById('bm-bo').addEventListener('click', function () { d.remove(); });
-  }
-
-  C.kiemTraBanMoi = function (baoLuonKhiTrung) {
-    return docBanTrenMayChu().then(function (b) {
-      BANMOI = b;
-      if (b && b !== BAN_WEB) { thanhBanMoi(b); return b; }
-      if (baoLuonKhiTrung) return b;      /* null = không hỏi được máy chủ */
-      return null;
-    });
-  };
-  C.banMoi = function () { return BANMOI; };
-  C.doiSangBanMoi = doiSangBanMoi;
-  /* hỏi một lần sau khi trang đã chạy ổn, khỏi làm chậm lúc mở */
-  setTimeout(function () { C.kiemTraBanMoi(); }, 6000);
 
   C.tai(function () {
     C.bao(C.saveMode());
