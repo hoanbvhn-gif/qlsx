@@ -5,12 +5,14 @@ import PageHeader from '@/components/common/PageHeader'
 import StatCard from '@/components/common/StatCard'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import EmptyState from '@/components/common/EmptyState'
+import KyBaoCao, { cacKy, chiaMoc, mocCuaNgay } from '@/components/common/KyBaoCao'
 import { cn } from '@/lib/utils'
 import { useEntities, entityTone } from '@/hooks/useEntities'
 import { vnd, dmy, STATUS, DEPT_OF_STATUS } from '@/lib/format'
@@ -25,7 +27,12 @@ const fmtAxis = v => (v >= 1e9 ? (v / 1e9).toFixed(1) + ' tỷ' : (v / 1e6).toFi
 
 export default function Analytics() {
   const { orders, loading } = useOrders()
-  const [year, setYear] = useState(new Date().getFullYear())
+
+  // Ky bao cao: thang / quy / nam / khoang ngay tu chon
+  const [ky, setKy] = useState(() => {
+    const k = cacKy()[0]                      // mac dinh: thang nay
+    return { tu: k.tu, den: k.den, nhan: k.ten }
+  })
 
   // Cong no THUC (hang da giao chua thu), ton san xuat, hieu suat NVKD
   const [debts, setDebts] = useState([])
@@ -53,9 +60,13 @@ export default function Analytics() {
   const live = useMemo(() => orders.filter(o =>
     !['draft', 'cancelled'].includes(o.status) && (!locDV || o.entity_id === locDV)
   ), [orders, locDV])
-  const years = useMemo(() =>
-    [...new Set(orders.map(o => new Date(o.order_date).getFullYear()))].sort((a, b) => b - a), [orders])
-  const inYear = useMemo(() => live.filter(o => new Date(o.order_date).getFullYear() === Number(year)), [live, year])
+  // Don nam trong ky (lay tron ca hai dau ngay)
+  const inYear = useMemo(
+    () => live.filter(o => {
+      const d = String(o.order_date).slice(0, 10)
+      return d >= ky.tu && d <= ky.den
+    }),
+    [live, ky])
 
   const kpi = useMemo(() => ({
     revenue: inYear.reduce((a, o) => a + Number(o.total_amount), 0),
@@ -64,25 +75,32 @@ export default function Analytics() {
     count: inYear.length
   }), [inYear])
 
+  const { kieu: kieuMoc, moc } = useMemo(() => chiaMoc(ky.tu, ky.den), [ky])
+
   const byMonth = useMemo(() => {
-    const arr = Array.from({ length: 12 }, (_, i) => ({ thang: `T${i + 1}`, doanhthu: 0, dathu: 0, congno: 0 }))
+    const idx = new Map(moc.map((m, i) => [m.key, i]))
+    const arr = moc.map(m => ({ thang: m.nhan, doanhthu: 0, dathu: 0, congno: 0 }))
     inYear.forEach(o => {
-      const m = new Date(o.order_date).getMonth()
-      arr[m].doanhthu += Number(o.total_amount)
-      arr[m].dathu += Number(o.paid_amount)
-      arr[m].congno += Number(o.debt_amount)
+      const i = idx.get(mocCuaNgay(o.order_date, kieuMoc))
+      if (i === undefined) return
+      arr[i].doanhthu += Number(o.total_amount)
+      arr[i].dathu += Number(o.paid_amount)
+      arr[i].congno += Number(o.debt_amount)
     })
     return arr
-  }, [inYear])
+  }, [inYear, moc, kieuMoc])
 
   const byQuarter = useMemo(() => {
-    const arr = [1, 2, 3, 4].map(q => ({ quy: `Quý ${q}`, doanhthu: 0, sodon: 0 }))
+    const m = new Map()
     inYear.forEach(o => {
-      const q = Math.floor(new Date(o.order_date).getMonth() / 3)
-      arr[q].doanhthu += Number(o.total_amount)
-      arr[q].sodon += 1
+      const d = new Date(o.order_date)
+      const k = `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`
+      const c = m.get(k) ?? { quy: `Quý ${Math.floor(d.getMonth() / 3) + 1}/${String(d.getFullYear()).slice(2)}`,
+                              doanhthu: 0, sodon: 0, sort: k }
+      c.doanhthu += Number(o.total_amount); c.sodon += 1
+      m.set(k, c)
     })
-    return arr
+    return [...m.values()].sort((a, b) => a.sort.localeCompare(b.sort))
   }, [inYear])
 
   const bySales = useMemo(() => {
@@ -117,31 +135,33 @@ export default function Analytics() {
         title="Báo cáo tổng hợp"
         desc="Doanh số, công nợ và tình trạng luân chuyển đơn hàng"
         action={
-          <div className="flex flex-wrap gap-2">
-            <Select className="w-48" value={locDV} onChange={e => setLocDV(e.target.value)}>
-              <option value="">Cả hai đơn vị</option>
-              {entities.map(e => <option key={e.id} value={e.id}>{e.short_name}</option>)}
-            </Select>
-            <Select className="w-36" value={year} onChange={e => setYear(e.target.value)}>
-              {(years.length ? years : [new Date().getFullYear()]).map(y => <option key={y} value={y}>Năm {y}</option>)}
-            </Select>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Đơn vị xuất hóa đơn</Label>
+              <Select className="w-44" value={locDV} onChange={e => setLocDV(e.target.value)}>
+                <option value="">Cả hai đơn vị</option>
+                {entities.map(e => <option key={e.id} value={e.id}>{e.short_name}</option>)}
+              </Select>
+            </div>
+            <KyBaoCao value={ky} onChange={setKy} />
           </div>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label={`Doanh thu ${year}`} value={vnd(kpi.revenue)} icon={TrendingUp} sub={`${kpi.count} đơn hàng`} />
+        <StatCard label={`Doanh thu · ${ky.nhan}`} value={vnd(kpi.revenue)} icon={TrendingUp}
+          sub={`${kpi.count} đơn · ${dmy(ky.tu)} — ${dmy(ky.den)}`} />
         <StatCard label="Đã thu" value={vnd(kpi.collected)} icon={Wallet} tone="text-emerald-600"
           sub={kpi.revenue ? `${((kpi.collected / kpi.revenue) * 100).toFixed(1)}% doanh thu` : ''} />
         <StatCard label="Công nợ phải thu" value={vnd(tongCongNo)} icon={AlertTriangle} tone="text-rose-600"
-          sub={`${debts.length} đơn đã giao chưa thu đủ`} />
+          sub={`${debts.length} đơn đã giao chưa thu đủ · toàn bộ, không theo kỳ`} />
         <StatCard label="Đang ở Sản xuất" value={vnd(tongTon)} icon={Factory} tone="text-indigo-600"
-          sub={`${wip.length} đơn${treHan ? ` · ${treHan} đơn trễ hạn` : ''}`} />
+          sub={`${wip.length} đơn${treHan ? ` · ${treHan} đơn trễ hạn` : ''} · hiện tại`} />
       </div>
 
       <Tabs defaultValue="thang" className="mt-5">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="thang">Theo tháng</TabsTrigger>
+          <TabsTrigger value="thang">Diễn biến</TabsTrigger>
           <TabsTrigger value="quy">Theo quý</TabsTrigger>
           <TabsTrigger value="nvkd">Biểu đồ NVKD</TabsTrigger>
           <TabsTrigger value="donvi">So sánh 2 đơn vị</TabsTrigger>
@@ -152,7 +172,13 @@ export default function Analytics() {
 
         <TabsContent value="thang">
           <Card>
-            <CardHeader><CardTitle>Doanh thu / Đã thu / Công nợ theo tháng · {year}</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>
+                Doanh thu / Đã thu / Công nợ theo{' '}
+                {kieuMoc === 'ngay' ? 'ngày' : kieuMoc === 'thang' ? 'tháng' : 'năm'} · {ky.nhan}
+              </CardTitle>
+              <CardDescription>{dmy(ky.tu)} — {dmy(ky.den)} · {kpi.count} đơn hàng</CardDescription>
+            </CardHeader>
             <CardContent className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={byMonth}>
@@ -172,7 +198,10 @@ export default function Analytics() {
 
         <TabsContent value="quy">
           <Card>
-            <CardHeader><CardTitle>Doanh thu theo quý · {year}</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>Doanh thu theo quý · {ky.nhan}</CardTitle>
+              <CardDescription>{dmy(ky.tu)} — {dmy(ky.den)}</CardDescription>
+            </CardHeader>
             <CardContent className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byQuarter}>
