@@ -5,6 +5,7 @@ import { ROLE_LABEL } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { donFileDaTatToan } from '@/lib/cleanup'
 import { versionLabel, COMMIT } from '@/lib/version'
+import { useBanMoi, taiLaiSach } from '@/hooks/useBanMoi'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import {
@@ -14,7 +15,8 @@ import {
 import {
   LayoutDashboard, FilePlus2, ListOrdered, CheckSquare, Wallet, Users,
   KanbanSquare, BarChart3, ShieldCheck, Menu, X, LogOut, Factory, Building2,
-  Settings as SettingsIcon, Package, Receipt, FileWarning, ScrollText, Landmark
+  Settings as SettingsIcon, Package, Receipt, FileWarning, ScrollText, Landmark,
+  RefreshCw, Sparkles
 } from 'lucide-react'
 
 const NAV = {
@@ -69,6 +71,9 @@ export default function AppLayout() {
   const items = NAV[profile?.role] ?? []
   const Icon = DEPT_ICON[profile?.role] ?? Building2
 
+  // Co ban moi tren may chu chua? Kiem moi 2 phut va moi lan quay lai tab.
+  const banMoi = useBanMoi()
+
   const initials = (profile?.full_name ?? '?')
     .split(' ').slice(-2).map(w => w[0]).join('').toUpperCase()
 
@@ -98,9 +103,12 @@ export default function AppLayout() {
         </nav>
         <div className="space-y-0.5 border-t p-3 text-xs text-muted-foreground">
           <p>QLSX · {ROLE_LABEL[profile?.role]}</p>
-          <p className="font-mono text-[11px]" title={COMMIT ? `commit ${COMMIT}` : 'chạy tại máy'}>
+          <button type="button" onClick={taiLaiSach}
+            title="Bấm để tải lại bản mới nhất (xóa bộ nhớ đệm trình duyệt)"
+            className="flex items-center gap-1.5 font-mono text-[11px] transition hover:text-foreground">
+            <RefreshCw className="size-3" />
             {versionLabel()}
-          </p>
+          </button>
         </div>
       </aside>
 
@@ -122,6 +130,18 @@ export default function AppLayout() {
 
       {/* Main */}
       <div className="lg:pl-64">
+        {banMoi && (
+          <div className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-3 bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+            <Sparkles className="size-4 shrink-0" />
+            <span>
+              Đã có <b>bản {banMoi}</b> — bạn đang chạy bản {versionLabel().match(/build (\S+)/)?.[1] ?? '?'}.
+            </span>
+            <button type="button" onClick={taiLaiSach}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1 font-semibold text-primary transition hover:bg-white/90">
+              <RefreshCw className="size-3.5" /> Tải bản mới ngay
+            </button>
+          </div>
+        )}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)}>
             <Menu />

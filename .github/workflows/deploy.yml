@@ -35,6 +35,14 @@ jobs:
         run: npm run build
       - name: Add .nojekyll
         run: touch dist/.nojekyll
+      # Chot chan: bao dam luon co version.json dung so build, ke ca khi
+      # plugin trong vite.config.js vi ly do nao do khong chay.
+      - name: Ghi version.json
+        run: |
+          printf '{"build":"%s","commit":"%s","time":"%s"}\n' \
+            "${{ github.run_number }}" "${GITHUB_SHA:0:7}" "$(date -u +%FT%TZ)" \
+            > dist/version.json
+          cat dist/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
