@@ -209,6 +209,17 @@ export default function NewOrder() {
         }
       }
 
+      /* 2b. Khach da co san ma ho so con thieu MST / dia chi -> bo sung luon */
+      if (customerId && head.customer_id) {
+        const cu = customers.find(c => c.id === customerId)
+        const bo = {}
+        if (cu && !((cu.tax_code ?? '').trim()) && head.customer_tax_code.trim())
+          bo.tax_code = head.customer_tax_code.trim()
+        if (cu && !((cu.address ?? '').trim()) && head.customer_address.trim())
+          bo.address = head.customer_address.trim()
+        if (Object.keys(bo).length) await supabase.from('customers').update(bo).eq('id', customerId)
+      }
+
       const primary = validFiles[0] ?? null
       const primaryRef = primary
         ? (primary.source === 'link' ? primary.file_url.trim() : `storage:${primary.storage_path}`)
@@ -362,7 +373,6 @@ export default function NewOrder() {
             </div>
             <MstInput
               value={head.customer_tax_code}
-              disabled={!!head.customer_id}
               tenHienTai={head.customer_name}
               onChange={v => setHead(h => ({ ...h, customer_tax_code: v }))}
               onFound={r => setHead(h => ({
