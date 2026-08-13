@@ -10,11 +10,13 @@ const ORDER_SELECT = `
   entity:entity_id ( id, code, short_name, tax_code, default_vat_rate ),
   submitted_at, approved_at, production_started_at, estimated_delivery_date,
   completed_at, delivered_at, created_at,
+  sua_sau_duyet_at, so_lan_sua,
+  nguoi_sua:sua_sau_duyet_by ( full_name ),
   sales:sales_id ( full_name, employee_code ),
   order_items ( id, line_no, item_code, item_name, spec, quantity, unit, unit_price, vat_rate, line_amount, line_vat, line_total, delivery_date, image_url, file_url, file_name ),
   order_files ( id, line_no, source, file_name, file_url, storage_path, file_size, note ),
   payments (
-    id, payment_date, payment_type, amount, method, reference_no, transfer_note, note,
+    id, payment_date, payment_type, amount, method, reference_no, transfer_note, note, bank_account,
     reconciled, proof_path, confirmed, confirmed_at, bank_txn_id, created_by, created_at,
     nguoi_ghi:created_by ( full_name )
   )

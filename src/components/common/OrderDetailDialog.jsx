@@ -8,7 +8,7 @@ import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS, payStatus, PAYMENT_TYPE_LABEL } f
 import { cn } from '@/lib/utils'
 import {
   ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff,
-  HandCoins, Clock, CheckCircle2, Landmark, Banknote, Circle, Factory, Truck
+  HandCoins, Clock, CheckCircle2, Landmark, Banknote, Circle, Factory, Truck, PencilLine
 } from 'lucide-react'
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
@@ -257,6 +257,11 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
                                 {tienMat ? <Banknote className="size-3.5" /> : <Landmark className="size-3.5" />}
                                 {p.method || 'Chuyển khoản'}
                               </span>
+                              {p.bank_account && (
+                                <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">
+                                  {p.bank_account}
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-muted-foreground">
                               {PAYMENT_TYPE_LABEL[p.payment_type] ?? p.payment_type}
@@ -271,7 +276,7 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
                                 </span>
                               )}
                               {!p.reference_no && !p.transfer_note && !p.note && (
-                                <span className="text-xs text-muted-foreground">--</span>
+                                <span className="text-xs text-amber-700">Chưa có chứng từ</span>
                               )}
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
@@ -309,6 +314,18 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
             </>
           )}
         </div>
+
+        {order.sua_sau_duyet_at && (
+          <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+            <PencilLine className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Đơn này đã bị sửa <b>{order.so_lan_sua} lần</b> sau khi duyệt — lần gần nhất{' '}
+              {dmyhm(order.sua_sau_duyet_at)}
+              {order.nguoi_sua?.full_name ? ` bởi ${order.nguoi_sua.full_name}` : ''}.
+              Xem chi tiết trong Nhật ký hệ thống.
+            </span>
+          </p>
+        )}
 
         {/* ----- Duong di cua don hang ----- */}
         <div className="space-y-2">
