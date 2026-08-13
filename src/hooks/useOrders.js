@@ -13,7 +13,11 @@ const ORDER_SELECT = `
   sales:sales_id ( full_name, employee_code ),
   order_items ( id, line_no, item_code, item_name, spec, quantity, unit, unit_price, vat_rate, line_amount, line_vat, line_total, delivery_date, image_url, file_url, file_name ),
   order_files ( id, line_no, source, file_name, file_url, storage_path, file_size, note ),
-  payments ( id, payment_date, payment_type, amount, method, reference_no, transfer_note, note, reconciled, proof_path, confirmed, bank_txn_id, created_by )
+  payments (
+    id, payment_date, payment_type, amount, method, reference_no, transfer_note, note,
+    reconciled, proof_path, confirmed, confirmed_at, bank_txn_id, created_by, created_at,
+    nguoi_ghi:created_by ( full_name )
+  )
 `
 
 export function useOrders({ statuses, salesId, autoRefresh = true } = {}) {

@@ -5,8 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Badge, StatusBadge } from '@/components/ui/badge'
 import { vnd, num, dmy, dmyhm, DEPT_OF_STATUS, payStatus, PAYMENT_TYPE_LABEL } from '@/lib/format'
-import { ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff, HandCoins, Clock, CheckCircle2 } from 'lucide-react'
-import ChungTu from '@/components/common/ChungTu'
+import { cn } from '@/lib/utils'
+import {
+  ExternalLink, FileWarning, Paperclip, Download, Loader2, Receipt, ImageOff,
+  HandCoins, Clock, CheckCircle2, Landmark, Banknote, Circle, Factory, Truck
+} from 'lucide-react'
 
 export default function OrderDetailDialog({ order, open, onOpenChange, footer }) {
   const [busyId, setBusyId] = useState(null)
@@ -27,6 +30,22 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
   const deposit = pays.filter(p => p.payment_type === 'deposit')
                       .reduce((a, p) => a + Number(p.amount), 0)
   const lastPay = [...pays].sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0]
+
+  // Tien ve theo tung duong — chi tinh khoan da vao so
+  const daVaoSo = pays.filter(p => p.confirmed !== false)
+  const laTienMat = p => /tiền mặt|tien mat/i.test(p.method ?? '')
+  const tongTM = daVaoSo.filter(laTienMat).reduce((a, p) => a + Number(p.amount), 0)
+  const tongCK = daVaoSo.filter(p => !laTienMat(p)).reduce((a, p) => a + Number(p.amount), 0)
+
+  // Cac moc don hang di qua
+  const changDuong = [
+    { nhan: 'Lập đơn',      moc: order.created_at },
+    { nhan: 'Gửi duyệt',    moc: order.submitted_at },
+    { nhan: 'Đã duyệt',     moc: order.approved_at },
+    { nhan: 'Vào sản xuất', moc: order.production_started_at },
+    { nhan: 'Xong hàng',    moc: order.completed_at },
+    { nhan: 'Đã giao',      moc: order.delivered_at }
+  ]
 
   // uu tien danh sach order_files; neu don cu chi co 1 link thi dung link do
   const designs = (order.order_files?.length
@@ -182,7 +201,8 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
                 <b> chờ Kế toán xác nhận</b> — chưa trừ vào công nợ.
               </p>
             )}
-            {Number(order.deposit_expected) > 0 && !order.deposit_confirmed && (
+            {Number(order.deposit_expected) > 0 && !order.deposit_confirmed
+              && Number(order.paid_amount) <= 0 && (
               <p className="flex gap-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
                 <HandCoins className="size-4 shrink-0" />
                 Kinh doanh khai khách đã cọc <b className="num">{vnd(order.deposit_expected)} đ</b> —
@@ -192,40 +212,131 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
           </div>
         </div>
 
-        {/* ----- Lich su thu tien ----- */}
-        {!!order.payments?.length && (
-          <div className="space-y-2">
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <Receipt className="size-4" /> Lịch sử thu tiền ({order.payments.length})
+        {/* ----- Lich su thu tien: ai thu, thu bang gi, ngay nao ----- */}
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Receipt className="size-4" /> Lịch sử thu tiền ({pays.length})
+          </p>
+
+          {!pays.length ? (
+            <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              Chưa thu được đồng nào của đơn này.
             </p>
-            <div className="space-y-1.5">
-              {[...order.payments]
-                .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
-                .map(p => (
-                <div key={p.id} className={`flex items-start gap-3 rounded-lg border p-2.5 text-sm ${
-                  p.confirmed === false ? 'border-amber-200 bg-amber-50/60' : ''}`}>
-                  <ChungTu value={p.proof_path} size="sm" readOnly onChange={() => {}} />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-1.5 font-medium">
-                      {dmy(p.payment_date)} · {PAYMENT_TYPE_LABEL[p.payment_type] ?? p.payment_type}
-                      {p.confirmed === false
-                        ? <Badge className="border-amber-200 bg-amber-100 text-amber-800">
-                            <Clock className="size-3" /> chờ Kế toán xác nhận
-                          </Badge>
-                        : <CheckCircle2 className="size-3.5 text-emerald-600" />}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {[p.method, p.reference_no, p.transfer_note].filter(Boolean).join(' · ') || 'Không có chứng từ'}
-                    </p>
-                  </div>
-                  <span className={`num shrink-0 font-semibold ${Number(p.amount) < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                    {vnd(p.amount)}
-                  </span>
+          ) : (
+            <>
+              <div className="overflow-x-auto rounded-xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Ngày thu</TableHead>
+                      <TableHead>Hình thức</TableHead>
+                      <TableHead>Loại</TableHead>
+                      <TableHead>Chứng từ / Nội dung</TableHead>
+                      <TableHead>Người ghi</TableHead>
+                      <TableHead className="text-right">Số tiền</TableHead>
+                      <TableHead>Vào sổ</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...pays]
+                      .sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date))
+                      .map(p => {
+                        const tienMat = /tiền mặt|tien mat/i.test(p.method ?? '')
+                        return (
+                          <TableRow key={p.id}
+                            className={cn(p.confirmed === false && 'bg-amber-50/60')}>
+                            <TableCell className="whitespace-nowrap font-medium">
+                              {dmy(p.payment_date)}
+                            </TableCell>
+                            <TableCell>
+                              <span className={cn(
+                                'inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-xs font-medium',
+                                tienMat
+                                  ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                  : 'border-sky-200 bg-sky-50 text-sky-800')}>
+                                {tienMat ? <Banknote className="size-3.5" /> : <Landmark className="size-3.5" />}
+                                {p.method || 'Chuyển khoản'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {PAYMENT_TYPE_LABEL[p.payment_type] ?? p.payment_type}
+                            </TableCell>
+                            <TableCell className="max-w-[240px]">
+                              {p.reference_no && (
+                                <span className="block font-mono text-xs">{p.reference_no}</span>
+                              )}
+                              {(p.transfer_note || p.note) && (
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {p.transfer_note || p.note}
+                                </span>
+                              )}
+                              {!p.reference_no && !p.transfer_note && !p.note && (
+                                <span className="text-xs text-muted-foreground">--</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                              {p.nguoi_ghi?.full_name ?? '--'}
+                            </TableCell>
+                            <TableCell className={cn('num whitespace-nowrap text-right font-semibold',
+                              Number(p.amount) < 0 ? 'text-rose-600' : 'text-emerald-700')}>
+                              {vnd(p.amount)}
+                            </TableCell>
+                            <TableCell>
+                              {p.confirmed === false
+                                ? <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+                                    <Clock className="size-3" /> chờ Kế toán
+                                  </Badge>
+                                : <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
+                                    <CheckCircle2 className="size-3.5" /> đã vào sổ
+                                  </span>}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Cong theo hinh thuc — nhin phat biet tien ve ngan hang bao nhieu, tien mat bao nhieu */}
+              <div className="grid gap-2 sm:grid-cols-3">
+                <TongHinhThuc icon={Landmark} nhan="Qua ngân hàng" tien={tongCK}
+                  tone="border-sky-200 bg-sky-50 text-sky-900" />
+                <TongHinhThuc icon={Banknote} nhan="Tiền mặt" tien={tongTM}
+                  tone="border-amber-200 bg-amber-50 text-amber-900" />
+                <TongHinhThuc icon={CheckCircle2} nhan="Tổng đã vào sổ" tien={Number(order.paid_amount)}
+                  tone="border-emerald-200 bg-emerald-50 text-emerald-900" />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ----- Duong di cua don hang ----- */}
+        <div className="space-y-2">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Factory className="size-4" /> Tiến độ đơn hàng
+          </p>
+          <div className="grid gap-2 rounded-xl border p-3 sm:grid-cols-3 lg:grid-cols-6">
+            {changDuong.map(c => (
+              <div key={c.nhan} className="flex items-start gap-2">
+                {c.moc
+                  ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                  : <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/40" />}
+                <div className="min-w-0">
+                  <p className={cn('text-xs font-medium', !c.moc && 'text-muted-foreground')}>{c.nhan}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {c.moc ? dmyhm(c.moc) : 'chưa'}
+                  </p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
+          {order.estimated_delivery_date && !order.delivered_at && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Truck className="size-3.5" /> Sản xuất hẹn giao ngày{' '}
+              <b>{dmy(order.estimated_delivery_date)}</b>
+            </p>
+          )}
+        </div>
 
         {order.note && <p className="rounded-lg bg-muted/50 p-3 text-sm"><b>Ghi chú:</b> {order.note}</p>}
         {order.reject_reason && order.status === 'rejected' && (
@@ -239,6 +350,16 @@ export default function OrderDetailDialog({ order, open, onOpenChange, footer })
     </Dialog>
   )
 }
+
+const TongHinhThuc = ({ icon: Icon, nhan, tien, tone }) => (
+  <div className={`flex items-center gap-2.5 rounded-lg border p-2.5 ${tone}`}>
+    <Icon className="size-4 shrink-0" />
+    <div className="min-w-0">
+      <p className="text-xs">{nhan}</p>
+      <p className="num text-sm font-semibold">{vnd(tien)} đ</p>
+    </div>
+  </div>
+)
 
 const Field = ({ k, v }) => (
   <div><p className="text-xs text-muted-foreground">{k}</p><p className="font-medium">{v || '--'}</p></div>
